@@ -1,5 +1,7 @@
 /**
 @file main.cpp
+
+~ Frova Davide
 */
 
 #include <iostream>
@@ -36,7 +38,7 @@ public:
 class Object;
 
 /**
- Structure representing the even of hitting an object
+ Structure representing the event of hitting an object
  */
 struct Hit
 {
@@ -115,6 +117,55 @@ public:
 
 		------------------------------------------------- */
 
+		glm::vec3 c = glm::vec3(
+			this->center[0] - ray.origin[0],
+			this->center[1] - ray.origin[1],
+			this->center[2] - ray.origin[2]);
+
+		float a = glm::dot(
+			c,
+			glm::vec3(
+				ray.direction[0] - ray.origin[0],
+				ray.direction[1] - ray.origin[1],
+				ray.direction[2] - ray.origin[2]));
+
+		float D = sqrt(
+			pow(glm::length(c), 2) - pow(a, 2));
+
+		// Cases
+		if (D > this->radius)
+		{
+			// No solution
+			hit.intersection = glm::vec3(0);
+			hit.distance = 0;
+		}
+		else if (D == this->radius)
+		{
+			// One solution
+			hit.intersection = glm::vec3(
+				ray.direction[0] * a,
+				ray.direction[1] * a,
+				ray.direction[2] * a);
+
+			hit.distance = a;
+		}
+		else
+		{
+			// Two solutions
+			float t1 = a + sqrt(pow(this->radius, 2) - pow(D, 2));
+			float t2 = a - sqrt(pow(this->radius, 2) - pow(D, 2));
+
+			float t = t1 < t2 ? t1 : t2;
+
+			hit.intersection = glm::vec3(
+				ray.direction[0] * t,
+				ray.direction[1] * t,
+				ray.direction[2] * t);
+			hit.distance = t;
+		}
+
+		hit.normal = glm::vec3(0);
+		hit.object = this;
 		return hit;
 	}
 };
@@ -141,7 +192,7 @@ glm::vec3 ambient_light(0.1, 0.1, 0.1);
 vector<Object *> objects; ///< A list of all objects in the scene
 
 /** Function for computing color of an object according to the Phong Model
- @param point A point belonging to the object for which the color is computer
+ @param point A point belonging to the object for which the color is computed
  @param normal A normal vector the the point
  @param view_direction A normalized direction from the point to the viewer/camera
  @param material A material structure representing the material of the object
@@ -165,7 +216,9 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec3 view_direction
 }
 
 /**
- Functions that computes a color along the ray
+ Function that returns the color of the closest object intersected by the given Ray
+ Checks if the ray intersects with any of the objects in the scene
+ If so, return the color of the cloest object that got hit, if not returns the black color (0.0, 0.0, 0.0)
  @param ray Ray that should be traced through the scene
  @return Color at the intersection point
  */
@@ -177,15 +230,24 @@ glm::vec3 trace_ray(Ray ray)
 	closest_hit.hit = false;
 	closest_hit.distance = INFINITY;
 
+	// For each object in the scene, we run the intersect function
+	// If the hit is positive, we check if the distance is the smallest seen so far.
+	// This will give us the closes_hit from the camera
+	// Maybe we will need to check for negative values as they would result smaller than positive ones
 	for (int k = 0; k < objects.size(); k++)
 	{
 		Hit hit = objects[k]->intersect(ray);
-		if (hit.hit == true && hit.distance < closest_hit.distance)
+		if (hit.hit == true && hit.distance < closest_hit.distance){
 			closest_hit = hit;
+			
+		}
 	}
 
 	glm::vec3 color(0.0);
 
+	// If the ray hit something, save the color of the object hit
+	// Ex.3 will do fancy stuff with the PhongModel based on the object material
+	// If the ray didn't hit anything, we save the color 0,0,0 (black) as our background color
 	if (closest_hit.hit)
 	{
 		/* ------------------Excercise 3--------------------
@@ -208,6 +270,7 @@ glm::vec3 trace_ray(Ray ray)
 void sceneDefinition()
 {
 
+	// Add one sphere to the vector of objects
 	objects.push_back(new Sphere(1.0, glm::vec3(-0, -2, 8), glm::vec3(0.6, 0.9, 0.6)));
 
 	/* ------------------Excercise 2--------------------
@@ -256,6 +319,13 @@ int main(int argc, const char *argv[])
 
 	------------------------------------------------- */
 
+	// Size of Pixel which depends on width and fov
+	float S = (2 * tan(fov / 2)) / width;
+
+	// How much to translate from the 3D origin center of the plane to get to the point at i,j
+	float X = -width * S / 2;
+	float Y = height * S / 2;
+
 	for (int i = 0; i < width; i++)
 		for (int j = 0; j < height; j++)
 		{
@@ -267,13 +337,17 @@ int main(int argc, const char *argv[])
 			 ------------------------------------------------- */
 
 			// Definition of the ray
-			// glm::vec3 origin(0, 0, 0);
-			// glm::vec3 direction(?, ?, ?);               // fill in the correct values
-			// direction = glm::normalize(direction);
+			glm::vec3 origin(0, 0, 0);
 
-			// Ray ray(origin, direction);  // ray traversal
+			float x = X + i * S + S / 2;
+			float y = Y - j * S - S / 2;
 
-			// image.setPixel(i, j, trace_ray(ray));
+			glm::vec3 direction(x, y, 1); // fill in the correct values
+			direction = glm::normalize(direction);
+
+			Ray ray(origin, direction); // ray traversal
+
+			image.setPixel(i, j, trace_ray(ray));
 		}
 
 	t = clock() - t;
