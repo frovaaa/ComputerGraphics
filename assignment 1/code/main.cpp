@@ -148,6 +148,7 @@ public:
 				ray.direction[2] * a);
 
 			hit.distance = a;
+			hit.hit = true;
 		}
 		else
 		{
@@ -162,6 +163,7 @@ public:
 				ray.direction[1] * t,
 				ray.direction[2] * t);
 			hit.distance = t;
+			hit.hit = true;
 		}
 
 		hit.normal = glm::vec3(0);
@@ -202,7 +204,7 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec3 view_direction
 
 	glm::vec3 color(0.0);
 
-	/* ------------------Excercise 3--------------------
+	/* ------------------Exercise 3--------------------
 
 	 Phong model.
 	 Your code should implement a loop over all the lightsourses in the array lights and agredate the contribution of each of them to the final color of the object.
@@ -237,10 +239,8 @@ glm::vec3 trace_ray(Ray ray)
 	for (int k = 0; k < objects.size(); k++)
 	{
 		Hit hit = objects[k]->intersect(ray);
-		if (hit.hit == true && hit.distance < closest_hit.distance){
+		if (hit.hit == true && hit.distance < closest_hit.distance)
 			closest_hit = hit;
-			
-		}
 	}
 
 	glm::vec3 color(0.0);
@@ -250,7 +250,7 @@ glm::vec3 trace_ray(Ray ray)
 	// If the ray didn't hit anything, we save the color 0,0,0 (black) as our background color
 	if (closest_hit.hit)
 	{
-		/* ------------------Excercise 3--------------------
+		/* ------------------Exercise 3--------------------
 
 		 Use the second line when you implement PhongModel function - Exercise 3
 
@@ -273,13 +273,15 @@ void sceneDefinition()
 	// Add one sphere to the vector of objects
 	objects.push_back(new Sphere(1.0, glm::vec3(-0, -2, 8), glm::vec3(0.6, 0.9, 0.6)));
 
-	/* ------------------Excercise 2--------------------
+	/* ------------------Exercise 2--------------------
 
 	Place for your code: additional sphere
 
 	------------------------------------------------- */
+	// objects.push_back(new Sphere(2.0, glm::vec3(-0, -5, 8), glm::vec3(193, 101, 214)));
+	objects.push_back(new Sphere(1.0, glm::vec3(1.0, -2.0, 8.0), glm::vec3(0.6, 0.6, 0.9)));
 
-	/* ------------------Excercise 3--------------------
+	/* ------------------Exercise 3--------------------
 
 	 Add here all the objects to the scene. Remember to add them using the constructor for the sphere with material structure.
 	 You will also need to define the materials.
