@@ -105,6 +105,10 @@ public:
 
 		Hit hit;
 		hit.hit = false;
+		hit.intersection = glm::vec3(0);
+		hit.distance = 0;
+		hit.normal = glm::vec3(0);
+		hit.object = this;
 
 		/* ------------------ Exercise 1 -------------------
 
@@ -135,8 +139,6 @@ public:
 		float D = sqrt(
 			pow(glm::length(c), 2) - pow(a, 2));
 
-		// std::cout << "D: " << D << " R: " << this->radius << "\n";
-
 		// Cases
 		if (D < this->radius)
 		{
@@ -145,36 +147,42 @@ public:
 			float t1 = a + b;
 			float t2 = a - b;
 
-			// We choose only the intersection that is closest to the origin of the ray
-			float t = t1 < t2 ? t1 : t2;
+			// Now we need to check if the t are > 0, otherwise the sphere is behind the camera
+			// and it doesn't need to be rendered
+			if (t1 > 0 || t2 > 0)
+			{
+				// At least one of the two intersections is in front of the camera
+				// I set at INFINITY if the t is < 0
+				t1 = t1 > 0 ? t1 : INFINITY;
+				t2 = t2 > 0 ? t2 : INFINITY;
 
-			hit.intersection = glm::vec3(
-				ray.direction[0] * t,
-				ray.direction[1] * t,
-				ray.direction[2] * t);
-			hit.distance = t;
-			hit.hit = true;
+				// We choose only the intersection that is closest to the origin of the ray
+				float t = t1 < t2 ? t1 : t2;
+
+				hit.intersection = glm::vec3(
+					ray.direction[0] * t,
+					ray.direction[1] * t,
+					ray.direction[2] * t);
+				hit.distance = t;
+				hit.hit = true;
+			}
 		}
 		else if (std::abs(D - this->radius) < EPSILON)
 		{
-			// One solution
-			hit.intersection = glm::vec3(
-				ray.direction[0] * a,
-				ray.direction[1] * a,
-				ray.direction[2] * a);
+			// t = a+b	In this case b == 0 so a == t
+			if (a > 0)
+			{
+				// One solution
+				hit.intersection = glm::vec3(
+					ray.direction[0] * a,
+					ray.direction[1] * a,
+					ray.direction[2] * a);
 
-			hit.distance = a;
-			hit.hit = true;
-		}
-		else
-		{
-			// No solution
-			hit.intersection = glm::vec3(0);
-			hit.distance = 0;
+				hit.distance = a;
+				hit.hit = true;
+			}
 		}
 
-		hit.normal = glm::vec3(0);
-		hit.object = this;
 		return hit;
 	}
 };
@@ -278,15 +286,13 @@ void sceneDefinition()
 {
 
 	// Add one sphere to the vector of objects
-	// objects.push_back(new Sphere(1.0, glm::vec3(-0, -2, 8), glm::vec3(0.6, 0.9, 0.6)));
-	objects.push_back(new Sphere(1.0, glm::vec3(0, 0, 3), glm::vec3(0.6, 0.9, 0.6)));
+	objects.push_back(new Sphere(1.0, glm::vec3(0, 0, 5), glm::vec3(0.6, 0.9, 0.6)));
 
 	/* ------------------Exercise 2--------------------
 
 	Place for your code: additional sphere
 
 	------------------------------------------------- */
-	// objects.push_back(new Sphere(2.0, glm::vec3(-0, -5, 8), glm::vec3(193, 101, 214)));
 	// objects.push_back(new Sphere(1.0, glm::vec3(1.0, -2.0, 8.0), glm::vec3(0.6, 0.6, 0.9)));
 
 	/* ------------------Exercise 3--------------------
