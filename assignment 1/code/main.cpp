@@ -117,6 +117,9 @@ public:
 
 		------------------------------------------------- */
 
+		// Epsilon used for equality check between floats
+		const float EPSILON = 0.01;
+
 		glm::vec3 c = glm::vec3(
 			this->center[0] - ray.origin[0],
 			this->center[1] - ray.origin[1],
@@ -132,14 +135,27 @@ public:
 		float D = sqrt(
 			pow(glm::length(c), 2) - pow(a, 2));
 
+		// std::cout << "D: " << D << " R: " << this->radius << "\n";
+
 		// Cases
-		if (D > this->radius)
+		if (D < this->radius)
 		{
-			// No solution
-			hit.intersection = glm::vec3(0);
-			hit.distance = 0;
+			// Two solutions
+			float b = sqrt(pow(this->radius, 2) - pow(D, 2));
+			float t1 = a + b;
+			float t2 = a - b;
+
+			// We choose only the intersection that is closest to the origin of the ray
+			float t = t1 < t2 ? t1 : t2;
+
+			hit.intersection = glm::vec3(
+				ray.direction[0] * t,
+				ray.direction[1] * t,
+				ray.direction[2] * t);
+			hit.distance = t;
+			hit.hit = true;
 		}
-		else if (D == this->radius)
+		else if (std::abs(D - this->radius) < EPSILON)
 		{
 			// One solution
 			hit.intersection = glm::vec3(
@@ -152,18 +168,9 @@ public:
 		}
 		else
 		{
-			// Two solutions
-			float t1 = a + sqrt(pow(this->radius, 2) - pow(D, 2));
-			float t2 = a - sqrt(pow(this->radius, 2) - pow(D, 2));
-
-			float t = t1 < t2 ? t1 : t2;
-
-			hit.intersection = glm::vec3(
-				ray.direction[0] * t,
-				ray.direction[1] * t,
-				ray.direction[2] * t);
-			hit.distance = t;
-			hit.hit = true;
+			// No solution
+			hit.intersection = glm::vec3(0);
+			hit.distance = 0;
 		}
 
 		hit.normal = glm::vec3(0);
@@ -271,7 +278,8 @@ void sceneDefinition()
 {
 
 	// Add one sphere to the vector of objects
-	objects.push_back(new Sphere(1.0, glm::vec3(-0, -2, 8), glm::vec3(0.6, 0.9, 0.6)));
+	// objects.push_back(new Sphere(1.0, glm::vec3(-0, -2, 8), glm::vec3(0.6, 0.9, 0.6)));
+	objects.push_back(new Sphere(1.0, glm::vec3(0, 0, 3), glm::vec3(0.6, 0.9, 0.6)));
 
 	/* ------------------Exercise 2--------------------
 
@@ -279,7 +287,7 @@ void sceneDefinition()
 
 	------------------------------------------------- */
 	// objects.push_back(new Sphere(2.0, glm::vec3(-0, -5, 8), glm::vec3(193, 101, 214)));
-	objects.push_back(new Sphere(1.0, glm::vec3(1.0, -2.0, 8.0), glm::vec3(0.6, 0.6, 0.9)));
+	// objects.push_back(new Sphere(1.0, glm::vec3(1.0, -2.0, 8.0), glm::vec3(0.6, 0.6, 0.9)));
 
 	/* ------------------Exercise 3--------------------
 
