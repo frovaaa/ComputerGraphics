@@ -121,26 +121,30 @@ public:
 
 		------------------------------------------------- */
 
-		// Epsilon used for equality check between floats
-		const float EPSILON = 0.01;
-
+		// If the origin of the primary ray (camera) is not at the world 0,0,0
+		// We translate the center of the sphere to match the offest and act like if the camera is at 0,0,0
 		glm::vec3 c = glm::vec3(
 			this->center[0] - ray.origin[0],
 			this->center[1] - ray.origin[1],
 			this->center[2] - ray.origin[2]);
 
+		// If the origin of the ray is inside the Sphere, we return black color
+		// In this case the vector c is equal to the translated new center of the sphere C
+		if (glm::distance(c, ray.origin) <= this->radius)
+		{
+			// The origin of the ray is inside the Sphere
+			return hit;
+		}
+
 		float a = glm::dot(
 			c,
 			ray.direction);
 
-		// TODO: OLD VERSION, remove before submission
-		// glm::vec3(
-		// 	ray.direction[0] - ray.origin[0],
-		// 	ray.direction[1] - ray.origin[1],
-		// 	ray.direction[2] - ray.origin[2])
-
 		float D = sqrt(
 			pow(glm::length(c), 2) - pow(a, 2));
+
+		// Epsilon used for equality check between floats
+		const float EPSILON = 0.01;
 
 		// Cases
 		if (D < this->radius)
@@ -289,14 +293,14 @@ void sceneDefinition()
 {
 
 	// Add one sphere to the vector of objects
-	objects.push_back(new Sphere(1.0, glm::vec3(0, 0, 5), glm::vec3(0.6, 0.9, 0.6)));
+	objects.push_back(new Sphere(2.0, glm::vec3(0, 0, 9), glm::vec3(0.6, 0.9, 0.6)));
 
 	/* ------------------Exercise 2--------------------
 
 	Place for your code: additional sphere
 
 	------------------------------------------------- */
-	// objects.push_back(new Sphere(1.0, glm::vec3(1.0, -2.0, 8.0), glm::vec3(0.6, 0.6, 0.9)));
+	objects.push_back(new Sphere(1.0, glm::vec3(1.0, -2.0, 8.0), glm::vec3(0.6, 0.6, 0.9)));
 
 	/* ------------------Exercise 3--------------------
 
@@ -356,7 +360,7 @@ int main(int argc, const char *argv[])
 			 ------------------------------------------------- */
 
 			// Definition of the ray
-			glm::vec3 origin(3, 3, 0);
+			glm::vec3 origin(0, 0, 0);
 
 			float x = X + i * S + S / 2;
 			float y = Y - j * S - S / 2;
