@@ -131,10 +131,13 @@ public:
 
 		float a = glm::dot(
 			c,
-			glm::vec3(
-				ray.direction[0] - ray.origin[0],
-				ray.direction[1] - ray.origin[1],
-				ray.direction[2] - ray.origin[2]));
+			ray.direction);
+
+		// TODO: OLD VERSION, remove before submission
+		// glm::vec3(
+		// 	ray.direction[0] - ray.origin[0],
+		// 	ray.direction[1] - ray.origin[1],
+		// 	ray.direction[2] - ray.origin[2])
 
 		float D = sqrt(
 			pow(glm::length(c), 2) - pow(a, 2));
@@ -353,7 +356,7 @@ int main(int argc, const char *argv[])
 			 ------------------------------------------------- */
 
 			// Definition of the ray
-			glm::vec3 origin(0, 0, 0);
+			glm::vec3 origin(3, 3, 0);
 
 			float x = X + i * S + S / 2;
 			float y = Y - j * S - S / 2;
