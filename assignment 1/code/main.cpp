@@ -343,7 +343,7 @@ int main(int argc, const char *argv[])
 	------------------------------------------------- */
 
 	// Size of Pixel which depends on width and fov
-	float S = (2 * tan(fov / 2)) / width;
+	float S = (2 * tan(glm::radians(fov / 2))) / width;
 
 	// How much to translate from the 3D origin center of the plane to get to the point at i,j
 	float X = -width * S / 2;
