@@ -220,27 +220,26 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec3 view_direction
 
      ------------------------------------------------- */
 
-    // Add ambient illumination
-    color += material.ambient * ambient_light;
-    // TODO: (loop)
     // Iterate over all light sources
     for (int i = 0; i < lights.size(); ++i) {
         // light direction
         glm::vec3 l = glm::normalize(lights[i]->position - point);
-        // Add diffuse illumination
-        color += material.diffuse * glm::dot(normal, l);
         // Angle between the normal and the light direction
         float phi = glm::dot(normal, l);
-        // If the angle is more than +/- 90 degrees, the dot product is negative (n and l are unit vectors)
-        // so the reflection does not "illuminate" this point more
+        /* If the angle is more than +/- 90 degrees, the dot product is negative (n and l are unit vectors)
+        so reflection does not "illuminate" this point more */
         if (phi > 0) {
             // Add specular illumination
             glm::vec3 r = ((2.0f * normal) * phi) - l;
             color += material.specular * pow(glm::dot(r, view_direction), material.shininess);
+            // Add diffuse illumination
+            color += material.diffuse * phi;
         }
         // Multiply by light intensity
         color *= lights[i]->color;
     }
+    // Add ambient illumination
+    color += material.ambient * ambient_light;
     // Q: check clamping
     // The final color has to be clamped so the values do not go beyond 0 and 1.
     color = glm::clamp(color, glm::vec3(0.0), glm::vec3(1.0));
@@ -287,6 +286,8 @@ glm::vec3 trace_ray(Ray ray) {
                            closest_hit.normal,
                 // TODO Q: Shouldnt we take the ray, flip it, and then normalize?
                            glm::normalize(-closest_hit.intersection),
+                //                            glm::normalize(-ray.direction),
+
                            closest_hit.object->getMaterial()
         );
     } else {
