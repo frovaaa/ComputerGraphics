@@ -224,15 +224,20 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec3 view_direction
     color += material.ambient * ambient_light;
     // TODO: (loop)
     // Iterate over all light sources
-    for(int i = 0; i < lights.size(); ++i) {
+    for (int i = 0; i < lights.size(); ++i) {
         // light direction
         glm::vec3 l = glm::normalize(lights[i]->position - point);
         // Add diffuse illumination
         color += material.diffuse * glm::dot(normal, l);
-        // Add specular illumination
-        glm::vec3 r = ((2.0f * normal) * glm::dot(normal, l)) - l;
-        // TODO: WARNING probably not ok
-        color += material.specular * pow(glm::dot(r, view_direction), material.shininess);
+        // Angle between the normal and the light direction
+        float phi = glm::dot(normal, l);
+        // If the angle is more than +/- 90 degrees, the dot product is negative (n and l are unit vectors)
+        // so the reflection does not "illuminate" this point more
+        if (phi > 0) {
+            // Add specular illumination
+            glm::vec3 r = ((2.0f * normal) * phi) - l;
+            color += material.specular * pow(glm::dot(r, view_direction), material.shininess);
+        }
         // Multiply by light intensity
         color *= lights[i]->color;
     }
@@ -280,7 +285,7 @@ glm::vec3 trace_ray(Ray ray) {
         //color = closest_hit.object->color;
         color = PhongModel(closest_hit.intersection,
                            closest_hit.normal,
-                           // TODO Q: Shouldnt we take the ray, flip it, and then normalize?
+                // TODO Q: Shouldnt we take the ray, flip it, and then normalize?
                            glm::normalize(-closest_hit.intersection),
                            closest_hit.object->getMaterial()
         );
