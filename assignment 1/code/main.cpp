@@ -221,7 +221,7 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec3 view_direction
      ------------------------------------------------- */
 
     // Add ambient illumination
-    color += material.ambient * ambient_light + glm::vec3(0.5f);
+    color += material.ambient * ambient_light;
     // TODO: (loop)
     // Iterate over all light sources
     for(int i = 0; i < lights.size(); ++i) {
@@ -230,7 +230,6 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec3 view_direction
         // Add diffuse illumination
         color += material.diffuse * glm::dot(normal, l);
         // Add specular illumination
-
         glm::vec3 r = ((2.0f * normal) * glm::dot(normal, l)) - l;
         // TODO: WARNING probably not ok
         color += material.specular * pow(glm::dot(r, view_direction), material.shininess);
@@ -328,9 +327,9 @@ void sceneDefinition() {
     green.shininess = 0.0f;
     objects.push_back(new Sphere(1.0f, glm::vec3(2, -2, 6), green));
     // Define lights
-    lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(0.6)));
-    lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(0.6)));
-    lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.6)));
+    lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(0.4)));
+    lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(0.4)));
+    lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.4)));
 
     /* ------------------Exercise 3--------------------
 
