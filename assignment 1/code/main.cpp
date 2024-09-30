@@ -282,13 +282,11 @@ glm::vec3 trace_ray(Ray ray) {
 
          ------------------------------------------------- */
         //color = closest_hit.object->color;
-        color = PhongModel(closest_hit.intersection,
-                           closest_hit.normal,
-                // TODO Q: Shouldnt we take the ray, flip it, and then normalize?
-                           glm::normalize(-closest_hit.intersection),
-                //                            glm::normalize(-ray.direction),
-
-                           closest_hit.object->getMaterial()
+        color = PhongModel(
+            closest_hit.intersection,
+            closest_hit.normal,
+            glm::normalize(-ray.direction),
+            closest_hit.object->getMaterial()
         );
     } else {
         color = glm::vec3(0.0, 0.0, 0.0);
