@@ -1,6 +1,11 @@
 # Team Members
+
 Frova Davide  
 Jamila Oubenali
+
+# Work done
+
+We implemented all the features required by the assignment.
 
 # Issues encountered
 
