@@ -329,6 +329,7 @@ void sceneDefinition() {
   // Define lights
   lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(0.4)));
   lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(0.4)));
+  // lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.4)));
   lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.4)));
 
   /* ------------------Exercise 3--------------------
