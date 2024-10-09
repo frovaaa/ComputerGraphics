@@ -229,14 +229,10 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal, glm::vec3 view_direction
         /* If the angle is more than +/- 90 degrees, the dot product is negative (n and l are unit vectors)
         so reflection does not "illuminate" this point more */
         if (phi > 0) {
-            // Add specular illumination
+            // Add specular illumination, diffuse and multiply by the light intensity
             glm::vec3 r = ((2.0f * normal) * phi) - l;
-            color += material.specular * pow(glm::dot(r, view_direction), material.shininess);
-            // Add diffuse illumination
-            color += material.diffuse * phi;
+            color += (material.specular * pow(glm::dot(r, view_direction), material.shininess) + material.diffuse * phi) * lights[i]->color;
         }
-        // Multiply by light intensity
-        color *= lights[i]->color;
     }
     // Add ambient illumination
     color += material.ambient * ambient_light;
