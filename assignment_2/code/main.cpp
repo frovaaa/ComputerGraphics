@@ -19,6 +19,10 @@
 
 using namespace std;
 
+bool equalFloats(float a, float b, float EPSILON) {
+  return (std::abs(a - b) < EPSILON);
+}
+
 /**
  Class representing a single ray.
  */
@@ -145,9 +149,6 @@ class Sphere : public Object {
 
     float D = sqrt(pow(glm::length(c), 2) - pow(a, 2));
 
-    // Epsilon used for equality check between floats
-    const float EPSILON = 0.01;
-
     // Cases
     if (D < this->radius) {
       // Two solutions
@@ -172,7 +173,7 @@ class Sphere : public Object {
         hit.hit = true;
       }
       // Float comparison: if the radius is equal
-    } else if (std::abs(D - this->radius) < EPSILON) {
+    } else if (equalFloats(D, this->radius, 0.01)) {
       // t = a+b	In this case b == 0 so a == t
       if (a > 0) {
         // One solution
@@ -205,19 +206,37 @@ class Plane : public Object {
   Hit intersect(Ray ray) {
     Hit hit;
     hit.hit = false;
+    hit.intersection = glm::vec3(0);
+    hit.distance = 0;
+    hit.normal = glm::vec3(0);
+    hit.object = this;
 
-    /*
+    float NdotD = glm::dot(this->normal, ray.direction);
+    // If the dotproduct is 0, the ray direction is parallel to the plane
+    // so no hit
+    if (equalFloats(0, NdotD, 0.001)) {
+      return hit;
+    } else {
+      float NdotP = glm::dot(this->normal, this->point);
+      float NdotO = glm::dot(this->normal, ray.origin);
 
+      float t = (NdotP - NdotO) / NdotD;
 
+      if (t <= 0) {
+        return hit;
+      }
 
-     Excercise 1 - Plane-ray intersection
-
-
-
-
-     */
-
-    return hit;
+      hit.hit = true;
+      hit.intersection = ray.direction * t;
+      hit.distance = t;
+      // Here we compute if we need to flip the sign of the norm or not
+      // Based on the position of the camera, so the plane's color is not
+      // "one-view" only But actually renders on both sides
+      hit.normal = glm::dot(-(ray.direction), this->normal) < 0
+                       ? -(this->normal)
+                       : this->normal;
+      return hit;
+    }
   }
 };
 
@@ -396,6 +415,28 @@ void sceneDefinition() {
   lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(0.4)));
   lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(0.4)));
   lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.4)));
+
+  // Planes norms
+  glm::vec3 x_norm = glm::vec3(1, 0, 0);
+  glm::vec3 y_norm = glm::vec3(0, 1, 0);
+  glm::vec3 z_norm = glm::vec3(0, 0, 1);
+
+  // Define planes (ASS2)
+  glm::vec3 back_left_p = glm::vec3(-15, -3, -0.01);
+  // Left wall
+  objects.push_back(new Plane(back_left_p, x_norm, blue_dark));
+  // Bottom wall
+  objects.push_back(new Plane(back_left_p, y_norm, red_specular));
+  // Back wall
+  objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
+
+  glm::vec3 top_right_p = glm::vec3(15, 27, 30);
+  // Right wall
+  objects.push_back(new Plane(top_right_p, x_norm, blue_dark));
+  // Front wall
+  objects.push_back(new Plane(top_right_p, y_norm, green));
+  // Top wall
+  objects.push_back(new Plane(top_right_p, z_norm, green));
 }
 
 glm::vec3 toneMapping(glm::vec3 intensity) {
