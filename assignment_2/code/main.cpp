@@ -252,6 +252,10 @@ class Cone : public Object {
   Hit intersect(Ray ray) {
     Hit hit;
     hit.hit = false;
+    hit.intersection = glm::vec3(0);
+    hit.distance = 0;
+    hit.normal = glm::vec3(0);
+    hit.object = this;
 
     /*  ---- Exercise 2 -----
 
@@ -261,6 +265,84 @@ class Cone : public Object {
      transformations.
 
     */
+
+    /* Equation of the cone is x^2 + z^2 - y^2 = 0
+     * Search for gamma(t) = x^2 + z^2 - y^2*/
+    // Quadratic formula coefficients
+    float a = pow(ray.direction[0], 2) + pow(ray.direction[2], 2) -
+              pow(ray.direction[1], 2);
+    float b = 2 * (ray.direction[0] * ray.origin[0] +
+                   ray.direction[2] * ray.origin[2] -
+                   ray.direction[1] * ray.origin[1]);
+    float c =
+        pow(ray.origin[0], 2) + pow(ray.origin[2], 2) - pow(ray.origin[1], 2);
+
+    // b^2 - 4ac
+    float delta = pow(b, 2) - 4 * (a * c);
+    // If delta < 0, no solution
+    if (delta < 0) {
+      return hit;
+    } else if (equalFloats(delta, 0.0f, 0.01f)) {
+      // One solution
+      float t = -b / (2 * a);
+
+      if (t < 0) {
+        return hit;
+      }
+
+      // Q: Why no origin here?
+      glm::vec3 candidate = ray.direction * t;
+      if (candidate[1] > 1 || candidate[1] < 0) {
+        return hit;
+      }
+      hit.intersection = candidate;
+      hit.distance = t;
+      hit.hit = true;
+      /* Computing the normal -> If we rotate 180° around the y axis, we obtain
+       * the normal */
+      glm::vec4 v = glm::vec4(glm::normalize(-hit.intersection), 1.0f);
+      glm::mat4 identity = glm::mat4(1.0f);
+      /* TODO: Remove when not needed anymore
+       *           glm::mat4 identity = glm::mat4(
+              1.0, 0.0f, 0.0, 0.0f,
+              0.0f, 1.0f, 0.0, 0.0f,
+              0.0f, 0.0f, 1.0, 0.0f,
+              0.0, 0.0f, 0.0, 1.0f
+      );*/
+      // Rotation matrix around y axis
+      glm::mat4 M_rot_y =
+          glm::rotate(identity, (float)M_PI, glm::vec3(0.0f, 1.0f, 0.0f));
+      hit.normal = glm::vec3(M_rot_y * v);
+      // TODO: put them in global coordinates
+      return hit;
+    } else {
+      // Two solutions
+      // TODO: Complete
+      float t_1 = (-b + sqrt(delta)) / (2 * a);
+      float t_2 = (-b - sqrt(delta)) / (2 * a);
+      float t = t_1 <= t_2 ? t_1 : t_2;
+      if (t < 0) {
+        return hit;
+      }
+      glm::vec3 candidate = ray.direction * t;
+      if (candidate[1] > 1 || candidate[1] < 0) {
+        return hit;
+      }
+      hit.intersection = candidate;
+      hit.distance = t;
+      hit.hit = true;
+
+      /* Computing the normal -> If we rotate 180° around the y axis, we obtain
+       * the normal */
+      glm::vec4 v = glm::vec4(glm::normalize(-hit.intersection), 1.0f);
+      glm::mat4 identity = glm::mat4(1.0f);
+      // Rotation matrix around y axis
+      glm::mat4 M_rot_y =
+          glm::rotate(identity, (float)M_PI, glm::vec3(0.0f, 1.0f, 0.0f));
+      hit.normal = glm::vec3(M_rot_y * v);
+      // TODO: put them in global coordinates
+      return hit;
+    }
 
     /* If the intersection is found, you have to set all the critical fields in
     the Hit strucutre Remember that the final information about intersection
@@ -274,6 +356,9 @@ class Cone : public Object {
     hit.distance =
 
      */
+
+    // TODO: Convert  intersection point, normal vector and distance back to
+    // global coordinates
 
     return hit;
   }
@@ -428,7 +513,7 @@ void sceneDefinition() {
   // Bottom wall
   objects.push_back(new Plane(back_left_p, y_norm, red_specular));
   // Back wall
-  objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
+  // objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
 
   glm::vec3 top_right_p = glm::vec3(15, 27, 30);
   // Right wall
@@ -437,6 +522,9 @@ void sceneDefinition() {
   objects.push_back(new Plane(top_right_p, y_norm, green));
   // Top wall
   objects.push_back(new Plane(top_right_p, z_norm, green));
+
+  // Assignment 2: Adding cones
+  objects.push_back(new Cone(green));
 }
 
 glm::vec3 toneMapping(glm::vec3 intensity) {
@@ -475,7 +563,7 @@ int main(int argc, const char *argv[]) {
       float dz = 1;
 
       // Definition of the ray
-      glm::vec3 origin(0, 0, 0);
+      glm::vec3 origin(0, 0, -5);
       glm::vec3 direction(dx, dy, dz);
       direction = glm::normalize(direction);
 
