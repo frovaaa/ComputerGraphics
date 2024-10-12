@@ -307,6 +307,8 @@ class Cone : public Object {
         return hit;
       }
 
+      candidate[3] = 1.0f;
+
       hit.intersection = glm::vec3(this->transformationMatrix * candidate);
 
       // TODO: Check what to do with t to bring it in global coordinates
@@ -322,7 +324,8 @@ class Cone : public Object {
       glm::mat4 M_rot_y =
           glm::rotate(identity, (float)M_PI, glm::vec3(0.0f, 1.0f, 0.0f));
 
-      hit.normal = glm::vec3(this->normalMatrix * (M_rot_y * v));
+      hit.normal =
+          glm::normalize(glm::vec3(this->normalMatrix * (M_rot_y * v)));
       return hit;
     } else {
       // Two solutions
@@ -336,6 +339,8 @@ class Cone : public Object {
       if (candidate[1] > 1 || candidate[1] < 0) {
         return hit;
       }
+
+      candidate[3] = 1.0f;
       hit.intersection = glm::vec3(this->transformationMatrix * candidate);
 
       // TODO: Check what to do with t to bring it in global coordinates
@@ -350,7 +355,8 @@ class Cone : public Object {
       glm::mat4 M_rot_y =
           glm::rotate(identity, (float)M_PI, glm::vec3(0.0f, 1.0f, 0.0f));
 
-      hit.normal = glm::vec3(this->normalMatrix * (M_rot_y * v));
+      hit.normal =
+          glm::normalize(glm::vec3(this->normalMatrix * (M_rot_y * v)));
       return hit;
     }
 
@@ -523,7 +529,7 @@ void sceneDefinition() {
   // Bottom wall
   objects.push_back(new Plane(back_left_p, y_norm, red_specular));
   // Back wall
-  // objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
+  objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
 
   glm::vec3 top_right_p = glm::vec3(15, 27, 30);
   // Right wall
@@ -534,10 +540,16 @@ void sceneDefinition() {
   objects.push_back(new Plane(top_right_p, z_norm, green));
 
   // Assignment 2: Adding cones
-  glm::mat4 translateCone = glm::translate(glm::vec3(0, 0, 5));
+  glm::mat4 translationCone = glm::translate(glm::vec3(0, 0, 5));
+  glm::mat4 rotationCone = glm::rotate(
+      glm::mat4(1.0f), (float)glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+
+  glm::mat4 scaleCone = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
+
+  glm::mat4 coneTraMat = translationCone * rotationCone * scaleCone;
 
   Cone *cone = new Cone(green);
-  cone->setTransformation(translateCone);
+  cone->setTransformation(coneTraMat);
 
   objects.push_back(cone);
 }
