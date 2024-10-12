@@ -95,6 +95,8 @@ class Object {
     normalMatrix =
 
     */
+    inverseTransformationMatrix = glm::inverse(transformationMatrix);
+    normalMatrix = glm::transpose(glm::inverse(transformationMatrix));
   }
 };
 
@@ -257,6 +259,15 @@ class Cone : public Object {
     hit.normal = glm::vec3(0);
     hit.object = this;
 
+    // Convertion to Homogeneus coordinates
+    glm::vec4 localRayOrigin = glm::vec4(ray.origin, 1.0f);
+    glm::vec4 localRayDirection = glm::vec4(ray.direction, 0.0f);
+
+    // Apply the inverse matrix to bring the ray to local coordinates
+    localRayOrigin = this->inverseTransformationMatrix * localRayOrigin;
+    localRayDirection =
+        glm::normalize(this->inverseTransformationMatrix * localRayDirection);
+
     /*  ---- Exercise 2 -----
 
      Implement the ray-cone intersection. Before intersecting the ray with the
@@ -269,13 +280,13 @@ class Cone : public Object {
     /* Equation of the cone is x^2 + z^2 - y^2 = 0
      * Search for gamma(t) = x^2 + z^2 - y^2*/
     // Quadratic formula coefficients
-    float a = pow(ray.direction[0], 2) + pow(ray.direction[2], 2) -
-              pow(ray.direction[1], 2);
-    float b = 2 * (ray.direction[0] * ray.origin[0] +
-                   ray.direction[2] * ray.origin[2] -
-                   ray.direction[1] * ray.origin[1]);
-    float c =
-        pow(ray.origin[0], 2) + pow(ray.origin[2], 2) - pow(ray.origin[1], 2);
+    float a = pow(localRayDirection[0], 2) + pow(localRayDirection[2], 2) -
+              pow(localRayDirection[1], 2);
+    float b = 2 * (localRayDirection[0] * localRayOrigin[0] +
+                   localRayDirection[2] * localRayOrigin[2] -
+                   localRayDirection[1] * localRayOrigin[1]);
+    float c = pow(localRayOrigin[0], 2) + pow(localRayOrigin[2], 2) -
+              pow(localRayOrigin[1], 2);
 
     // b^2 - 4ac
     float delta = pow(b, 2) - 4 * (a * c);
@@ -291,45 +302,44 @@ class Cone : public Object {
       }
 
       // Q: Why no origin here?
-      glm::vec3 candidate = ray.direction * t;
+      glm::vec4 candidate = localRayDirection * t;
       if (candidate[1] > 1 || candidate[1] < 0) {
         return hit;
       }
-      hit.intersection = candidate;
-      hit.distance = t;
+
+      hit.intersection = glm::vec3(this->transformationMatrix * candidate);
+
+      // TODO: Check what to do with t to bring it in global coordinates
+      // it was    t
+      hit.distance = glm::distance(ray.origin, hit.intersection);
       hit.hit = true;
+
       /* Computing the normal -> If we rotate 180° around the y axis, we obtain
        * the normal */
-      glm::vec4 v = glm::vec4(glm::normalize(-hit.intersection), 1.0f);
+      glm::vec4 v = glm::vec4(glm::normalize(-hit.intersection), 0.0f);
       glm::mat4 identity = glm::mat4(1.0f);
-      /* TODO: Remove when not needed anymore
-       *           glm::mat4 identity = glm::mat4(
-              1.0, 0.0f, 0.0, 0.0f,
-              0.0f, 1.0f, 0.0, 0.0f,
-              0.0f, 0.0f, 1.0, 0.0f,
-              0.0, 0.0f, 0.0, 1.0f
-      );*/
       // Rotation matrix around y axis
       glm::mat4 M_rot_y =
           glm::rotate(identity, (float)M_PI, glm::vec3(0.0f, 1.0f, 0.0f));
-      hit.normal = glm::vec3(M_rot_y * v);
-      // TODO: put them in global coordinates
+
+      hit.normal = glm::vec3(this->normalMatrix * (M_rot_y * v));
       return hit;
     } else {
       // Two solutions
-      // TODO: Complete
       float t_1 = (-b + sqrt(delta)) / (2 * a);
       float t_2 = (-b - sqrt(delta)) / (2 * a);
       float t = t_1 <= t_2 ? t_1 : t_2;
       if (t < 0) {
         return hit;
       }
-      glm::vec3 candidate = ray.direction * t;
+      glm::vec4 candidate = localRayDirection * t;
       if (candidate[1] > 1 || candidate[1] < 0) {
         return hit;
       }
-      hit.intersection = candidate;
-      hit.distance = t;
+      hit.intersection = glm::vec3(this->transformationMatrix * candidate);
+
+      // TODO: Check what to do with t to bring it in global coordinates
+      hit.distance = glm::distance(ray.origin, hit.intersection);
       hit.hit = true;
 
       /* Computing the normal -> If we rotate 180° around the y axis, we obtain
@@ -339,8 +349,8 @@ class Cone : public Object {
       // Rotation matrix around y axis
       glm::mat4 M_rot_y =
           glm::rotate(identity, (float)M_PI, glm::vec3(0.0f, 1.0f, 0.0f));
-      hit.normal = glm::vec3(M_rot_y * v);
-      // TODO: put them in global coordinates
+
+      hit.normal = glm::vec3(this->normalMatrix * (M_rot_y * v));
       return hit;
     }
 
@@ -524,7 +534,12 @@ void sceneDefinition() {
   objects.push_back(new Plane(top_right_p, z_norm, green));
 
   // Assignment 2: Adding cones
-  objects.push_back(new Cone(green));
+  glm::mat4 translateCone = glm::translate(glm::vec3(0, 0, 5));
+
+  Cone *cone = new Cone(green);
+  cone->setTransformation(translateCone);
+
+  objects.push_back(cone);
 }
 
 glm::vec3 toneMapping(glm::vec3 intensity) {
@@ -563,7 +578,7 @@ int main(int argc, const char *argv[]) {
       float dz = 1;
 
       // Definition of the ray
-      glm::vec3 origin(0, 0, -5);
+      glm::vec3 origin(0, 0, 0);
       glm::vec3 direction(dx, dy, dz);
       direction = glm::normalize(direction);
 
