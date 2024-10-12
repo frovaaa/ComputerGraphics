@@ -280,102 +280,55 @@ class Cone : public Object {
     /* Equation of the cone is x^2 + z^2 - y^2 = 0
      * Search for gamma(t) = x^2 + z^2 - y^2*/
     // Quadratic formula coefficients
-    float a = pow(localRayDirection[0], 2) + pow(localRayDirection[2], 2) -
-              pow(localRayDirection[1], 2);
-    float b = 2 * (localRayDirection[0] * localRayOrigin[0] +
-                   localRayDirection[2] * localRayOrigin[2] -
-                   localRayDirection[1] * localRayOrigin[1]);
-    float c = pow(localRayOrigin[0], 2) + pow(localRayOrigin[2], 2) -
-              pow(localRayOrigin[1], 2);
+
+    float a = pow(localRayDirection.x, 2) + pow(localRayDirection.z, 2) -
+              pow(localRayDirection.y, 2);
+    float b = 2 * (localRayDirection.x * localRayOrigin.x +
+                   localRayDirection.z * localRayOrigin.z -
+                   localRayDirection.y * localRayOrigin.y);
+    float c = pow(localRayOrigin.x, 2) + pow(localRayOrigin.z, 2) -
+              pow(localRayOrigin.y, 2);
 
     // b^2 - 4ac
     float delta = pow(b, 2) - 4 * (a * c);
     // If delta < 0, no solution
     if (delta < 0) {
       return hit;
-    } else if (equalFloats(delta, 0.0f, 0.01f)) {
-      // One solution
-      float t = -b / (2 * a);
+    }
 
-      if (t < 0) {
-        return hit;
-      }
+    float t = 0.0f;
 
-      // Q: Why no origin here?
-      glm::vec4 candidate = localRayDirection * t;
-      if (candidate[1] > 1 || candidate[1] < 0) {
-        return hit;
-      }
-
-      candidate[3] = 1.0f;
-
-      hit.intersection = glm::vec3(this->transformationMatrix * candidate);
-
-      // TODO: Check what to do with t to bring it in global coordinates
-      // it was    t
-      hit.distance = glm::distance(ray.origin, hit.intersection);
-      hit.hit = true;
-
-      /* Computing the normal -> If we rotate 180° around the y axis, we obtain
-       * the normal */
-      glm::vec4 v = glm::vec4(glm::normalize(-hit.intersection), 0.0f);
-      glm::mat4 identity = glm::mat4(1.0f);
-      // Rotation matrix around y axis
-      glm::mat4 M_rot_y =
-          glm::rotate(identity, (float)M_PI, glm::vec3(0.0f, 1.0f, 0.0f));
-
-      hit.normal =
-          glm::normalize(glm::vec3(this->normalMatrix * (M_rot_y * v)));
-      return hit;
+    if (equalFloats(delta, 0.0f, 0.01f)) {
+      t = -b / (2 * a);
     } else {
-      // Two solutions
       float t_1 = (-b + sqrt(delta)) / (2 * a);
       float t_2 = (-b - sqrt(delta)) / (2 * a);
-      float t = t_1 <= t_2 ? t_1 : t_2;
-      if (t < 0) {
-        return hit;
-      }
-      glm::vec4 candidate = localRayDirection * t;
-      if (candidate[1] > 1 || candidate[1] < 0) {
-        return hit;
-      }
+      t = t_1 <= t_2 ? t_1 : t_2;
+    }
 
-      candidate[3] = 1.0f;
-      hit.intersection = glm::vec3(this->transformationMatrix * candidate);
-
-      // TODO: Check what to do with t to bring it in global coordinates
-      hit.distance = glm::distance(ray.origin, hit.intersection);
-      hit.hit = true;
-
-      /* Computing the normal -> If we rotate 180° around the y axis, we obtain
-       * the normal */
-      glm::vec4 v = glm::vec4(glm::normalize(-hit.intersection), 1.0f);
-      glm::mat4 identity = glm::mat4(1.0f);
-      // Rotation matrix around y axis
-      glm::mat4 M_rot_y =
-          glm::rotate(identity, (float)M_PI, glm::vec3(0.0f, 1.0f, 0.0f));
-
-      hit.normal =
-          glm::normalize(glm::vec3(this->normalMatrix * (M_rot_y * v)));
+    if (t <= 0) {
       return hit;
     }
 
-    /* If the intersection is found, you have to set all the critical fields in
-    the Hit strucutre Remember that the final information about intersection
-    point, normal vector and distance have to be given in the global coordinate
-    system.
+    // Possible point of intersection
+    glm::vec4 candidate = localRayOrigin + localRayDirection * t;
+    candidate[3] = 1.0f;
+    if (candidate.y > 1 || candidate.y < 0) {
+      return hit;
+    }
 
+    /* Computing the normal -> If we rotate 180° around the y axis, we obtain
+     * the normal */
+    glm::vec4 v = glm::vec4(glm::normalize(-hit.intersection), 1.0f);
+    glm::mat4 identity = glm::mat4(1.0f);
+    // Rotation matrix around y axis
+    glm::mat4 M_rot_y = glm::rotate(identity, (float)glm::radians(180.0f),
+                                    glm::vec3(0.0f, 1.0f, 0.0f));
+
+    hit.intersection = glm::vec3(this->transformationMatrix * candidate);
+    hit.distance = glm::distance(ray.origin, hit.intersection);
+    hit.normal = glm::normalize(glm::vec3(this->normalMatrix * (M_rot_y * v)));
     hit.hit = true;
-    hit.object = this;
-    hit.intersection =
-    hit.normal =
-    hit.distance =
-
-     */
-
-    // TODO: Convert  intersection point, normal vector and distance back to
-    // global coordinates
-
     return hit;
   }
 };
@@ -540,15 +493,22 @@ void sceneDefinition() {
   objects.push_back(new Plane(top_right_p, z_norm, green));
 
   // Assignment 2: Adding cones
-  glm::mat4 translationCone = glm::translate(glm::vec3(0, 0, 5));
-  glm::mat4 rotationCone = glm::rotate(
-      glm::mat4(1.0f), (float)glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+  Material yellow;
+  yellow.diffuse = glm::vec3(0.9f, 0.9f, 0.0f);
+  yellow.ambient = glm::vec3(0.09f, 0.09f, 0.0f);
+  yellow.specular = glm::vec3(1.0f);
+  yellow.shininess = 64.0f;
 
-  glm::mat4 scaleCone = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
+  glm::mat4 translationCone = glm::translate(glm::vec3(5, 9, 14));
+  glm::mat4 rotationCone =
+      glm::rotate(glm::mat4(1.0f), (float)glm::radians(180.0f),
+                  glm::vec3(0.0f, 0.0f, 1.0f));
+
+  glm::mat4 scaleCone = glm::scale(glm::vec3(3.0f, 12.0f, 1.0f));
 
   glm::mat4 coneTraMat = translationCone * rotationCone * scaleCone;
 
-  Cone *cone = new Cone(green);
+  Cone *cone = new Cone(yellow);
   cone->setTransformation(coneTraMat);
 
   objects.push_back(cone);
