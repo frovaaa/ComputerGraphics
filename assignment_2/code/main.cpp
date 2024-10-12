@@ -279,8 +279,8 @@ class Cone : public Object {
 
     /* Equation of the cone is x^2 + z^2 - y^2 = 0
      * Search for gamma(t) = x^2 + z^2 - y^2*/
-    // Quadratic formula coefficients
 
+    // Quadratic formula coefficients
     float a = pow(localRayDirection.x, 2) + pow(localRayDirection.z, 2) -
               pow(localRayDirection.y, 2);
     float b = 2 * (localRayDirection.x * localRayOrigin.x +
@@ -296,17 +296,14 @@ class Cone : public Object {
       return hit;
     }
 
-    float t = 0.0f;
-
-    if (equalFloats(delta, 0.0f, 0.01f)) {
-      t = -b / (2 * a);
-    } else {
-      float t_1 = (-b + sqrt(delta)) / (2 * a);
-      float t_2 = (-b - sqrt(delta)) / (2 * a);
-      t = t_1 <= t_2 ? t_1 : t_2;
-    }
-
-    if (t <= 0) {
+    float t = INFINITY;
+    // Compute both t
+    float t_1 = (-b + sqrt(delta)) / (2 * a);
+    float t_2 = (-b - sqrt(delta)) / (2 * a);
+    // Choose smallest one
+    if (t_1 > 0 && t_1 < t) t = t_1;
+    if (t_2 > 0 && t_2 < t) t = t_2;
+    if (t == INFINITY) {
       return hit;
     }
 
@@ -316,18 +313,17 @@ class Cone : public Object {
     if (candidate.y > 1 || candidate.y < 0) {
       return hit;
     }
-
-    /* Computing the normal -> If we rotate 180° around the y axis, we obtain
-     * the normal */
-    glm::vec4 v = glm::vec4(glm::normalize(-hit.intersection), 1.0f);
-    glm::mat4 identity = glm::mat4(1.0f);
-    // Rotation matrix around y axis
-    glm::mat4 M_rot_y = glm::rotate(identity, (float)glm::radians(180.0f),
-                                    glm::vec3(0.0f, 1.0f, 0.0f));
-
     hit.intersection = glm::vec3(this->transformationMatrix * candidate);
     hit.distance = glm::distance(ray.origin, hit.intersection);
-    hit.normal = glm::normalize(glm::vec3(this->normalMatrix * (M_rot_y * v)));
+
+    // Compute the normal in the local coordinates using the gradient?
+    glm::vec3 local_normal = glm::normalize(
+        glm::vec3(2 * candidate.x, -2 * candidate.y, 2 * candidate.z));
+
+    // Transforming the normal into global coordinates
+    hit.normal = glm::normalize(
+        glm::vec3(this->normalMatrix * glm::vec4(local_normal, 0.0f)));
+
     hit.hit = true;
     return hit;
   }
@@ -463,7 +459,7 @@ void sceneDefinition() {
   green.ambient = glm::vec3(0.07f, 0.09f, 0.07f);
   green.specular = glm::vec3(0.0f);
   green.shininess = 0.0f;
-  objects.push_back(new Sphere(1.0f, glm::vec3(2, -2, 6), green));
+  // objects.push_back(new Sphere(1.0f, glm::vec3(2, -2, 6), green));
 
   // Define lights
   lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(0.4)));
@@ -499,19 +495,28 @@ void sceneDefinition() {
   yellow.specular = glm::vec3(1.0f);
   yellow.shininess = 64.0f;
 
-  glm::mat4 translationCone = glm::translate(glm::vec3(5, 9, 14));
-  glm::mat4 rotationCone =
+  glm::mat4 translation_yellow_cone = glm::translate(glm::vec3(5, 9, 14));
+  glm::mat4 rotation_yellow_cone =
       glm::rotate(glm::mat4(1.0f), (float)glm::radians(180.0f),
                   glm::vec3(0.0f, 0.0f, 1.0f));
+  glm::mat4 scale_yellow_cone = glm::scale(glm::vec3(3.0f, 12.0f, 1.0f));
+  glm::mat4 yellowConeTraMat =
+      translation_yellow_cone * rotation_yellow_cone * scale_yellow_cone;
 
-  glm::mat4 scaleCone = glm::scale(glm::vec3(3.0f, 12.0f, 1.0f));
+  Cone *yellow_cone = new Cone(yellow);
+  yellow_cone->setTransformation(yellowConeTraMat);
+  objects.push_back(yellow_cone);
 
-  glm::mat4 coneTraMat = translationCone * rotationCone * scaleCone;
+  glm::mat4 translation_green_cone = glm::translate(glm::vec3(6, -3, 7));
+  glm::mat4 rotation_green_cone = glm::rotate(
+      glm::mat4(1.0f), (float)glm::radians(67.5f), glm::vec3(0.0f, 0.0f, 1.0f));
+  glm::mat4 scale_green_cone = glm::scale(glm::vec3(1.0f, 3.0f, 1.0f));
+  glm::mat4 greenConeTraMat =
+      translation_green_cone * rotation_green_cone * scale_green_cone;
 
-  Cone *cone = new Cone(yellow);
-  cone->setTransformation(coneTraMat);
-
-  objects.push_back(cone);
+  Cone *green_cone = new Cone(green);
+  green_cone->setTransformation(greenConeTraMat);
+  objects.push_back(green_cone);
 }
 
 glm::vec3 toneMapping(glm::vec3 intensity) {
