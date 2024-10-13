@@ -45,13 +45,13 @@ class Object;
  Structure representing the event of hitting an object
  */
 struct Hit {
-  bool hit;          ///< Boolean indicating whether there was or there was no
-                     ///< intersection with an object
+  bool hit;  ///< Boolean indicating whether there was or there was no
+  ///< intersection with an object
   glm::vec3 normal;  ///< Normal vector of the intersected object at the
-                     ///< intersection point
+  ///< intersection point
   glm::vec3 intersection;  ///< Point of Intersection
   float distance;  ///< Distance from the origin of the ray to the intersection
-                   ///< point
+  ///< point
   Object *object;  ///< A pointer to the intersected object
 };
 
@@ -62,10 +62,10 @@ class Object {
  protected:
   glm::mat4
       transformationMatrix;  ///< Matrix representing the transformation from
-                             ///< the local to the global coordinate system
+  ///< the local to the global coordinate system
   glm::mat4 inverseTransformationMatrix;  ///< Matrix representing the
-                                          ///< transformation from the global to
-                                          ///< the local coordinate system
+  ///< transformation from the global to
+  ///< the local coordinate system
   glm::mat4 normalMatrix;  ///< Matrix for transforming normal vectors from the
                            ///< local to the global coordinate system
 
@@ -82,6 +82,7 @@ class Object {
    @param material A structure describing the material of the object
   */
   void setMaterial(Material material) { this->material = material; }
+
   /** Functions for setting up all the transformation matrices
   @param matrix The matrix representing the transformation of the object in the
   global coordinates */
@@ -201,10 +202,12 @@ class Plane : public Object {
 
  public:
   Plane(glm::vec3 point, glm::vec3 normal) : point(point), normal(normal) {}
+
   Plane(glm::vec3 point, glm::vec3 normal, Material material)
       : point(point), normal(normal) {
     this->material = material;
   }
+
   Hit intersect(Ray ray) {
     Hit hit;
     hit.hit = false;
@@ -252,6 +255,7 @@ class Cone : public Object {
     // The point must be in the center of the cone's base
     plane = new Plane(glm::vec3(0, 1, 0), glm::vec3(0.0, 1, 0));
   }
+
   Hit intersect(Ray ray) {
     // Radius of the cone's base
     float BASE_RADIUS = 1.0f;
@@ -292,13 +296,13 @@ class Cone : public Object {
     if (hitPlane.hit) {
       // If the cone is not hit at all, the fields other than 'hit' do not
       // matter, so we can assign them like this now
-      hit.intersection = glm::vec3(this->transformationMatrix *
-                                   glm::vec4(hitPlane.intersection, 1.0f));
-      hit.normal = glm::normalize(
-          glm::vec3(this->normalMatrix * glm::vec4(hitPlane.normal, 0.0f)));
+      hit.intersection = hitPlane.intersection;
+      hit.normal = hitPlane.normal;
       hit.distance = glm::distance(hit.intersection, ray.origin);
       // If the radius is superior to one, it is not part of the cone's base
-      if (glm::distance(hitPlane.intersection, baseCenter) > BASE_RADIUS) {
+      if (glm::distance(glm::vec3(this->inverseTransformationMatrix *
+                                  glm::vec4(hitPlane.intersection, 1.0f)),
+                        baseCenter) > BASE_RADIUS) {
         hitPlane.hit = false;
       }
       hit.hit = hitPlane.hit;
@@ -526,22 +530,20 @@ void sceneDefinition() {
 
   // Define planes (ASS2)
   glm::vec3 back_left_p = glm::vec3(-15, -3, -0.01);
-  /*  // Left wall
-    objects.push_back(new Plane(back_left_p, x_norm, blue_dark));
-    // Bottom wall
-    objects.push_back(new Plane(back_left_p, y_norm, red_specular));*/
+  // Left wall
+  objects.push_back(new Plane(back_left_p, x_norm, blue_dark));
+  // Bottom wall
+  objects.push_back(new Plane(back_left_p, y_norm, red_specular));
   // Back wall TODO: Uncomment
   // objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
 
   glm::vec3 top_right_p = glm::vec3(15, 27, 30);
-  /*
-    // Right wall
-    objects.push_back(new Plane(top_right_p, x_norm, blue_dark));
-    // Front wall
-    objects.push_back(new Plane(top_right_p, y_norm, green));
-    // Top wall
-    objects.push_back(new Plane(top_right_p, z_norm, green));
-  */
+  // Right wall
+  objects.push_back(new Plane(top_right_p, x_norm, blue_dark));
+  // Above/top wall ??
+  objects.push_back(new Plane(top_right_p, y_norm, green));
+  // Front wall
+  objects.push_back(new Plane(top_right_p, z_norm, red_specular));
 
   // Assignment 2: Adding cones
   Material yellow;
@@ -562,10 +564,10 @@ void sceneDefinition() {
   yellow_cone->setTransformation(yellowConeTraMat);
   // objects.push_back(yellow_cone);
 
-  glm::mat4 translation_green_cone = glm::translate(glm::vec3(6, -3, 7));
+  glm::mat4 translation_green_cone = glm::translate(glm::vec3(0, -3, 7));
   glm::mat4 rotation_green_cone = glm::rotate(
-      glm::mat4(1.0f), (float)glm::radians(67.5f), glm::vec3(0.0f, 0.0f, 1.0f));
-  glm::mat4 scale_green_cone = glm::scale(glm::vec3(1.0f, 3.0f, 1.0f));
+      glm::mat4(1.0f), (float)glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+  glm::mat4 scale_green_cone = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 greenConeTraMat =
       translation_green_cone * rotation_green_cone * scale_green_cone;
 
