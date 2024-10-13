@@ -249,9 +249,12 @@ class Cone : public Object {
  public:
   Cone(Material material) {
     this->material = material;
+    // The point must be in the center of the cone's base
     plane = new Plane(glm::vec3(0, 1, 0), glm::vec3(0.0, 1, 0));
   }
   Hit intersect(Ray ray) {
+    // Radius of the cone's base
+    float BASE_RADIUS = 1.0f;
     Hit hit;
     hit.hit = false;
     hit.intersection = glm::vec3(0);
@@ -259,7 +262,7 @@ class Cone : public Object {
     hit.normal = glm::vec3(0);
     hit.object = this;
 
-    // Convertion to Homogeneus coordinates
+    // Convertion to Homogeneous coordinates
     glm::vec4 localRayOrigin = glm::vec4(ray.origin, 1.0f);
     glm::vec4 localRayDirection = glm::vec4(ray.direction, 0.0f);
 
@@ -267,6 +270,9 @@ class Cone : public Object {
     localRayOrigin = this->inverseTransformationMatrix * localRayOrigin;
     localRayDirection =
         glm::normalize(this->inverseTransformationMatrix * localRayDirection);
+
+    Ray *localRay =
+        new Ray(glm::vec3(localRayOrigin), glm::vec3(localRayDirection));
 
     /*  ---- Exercise 2 -----
 
@@ -277,6 +283,26 @@ class Cone : public Object {
 
     */
 
+    // Checking if the ray hits the plane (base of the cone)
+    Hit hitPlane = this->plane->intersect(*localRay);
+    // Center of the cone's base
+    glm::vec3 baseCenter = glm::vec3(0.0f, 1.0f, 0.0f);
+
+    // Check if the base of the cone was hit
+    if (hitPlane.hit) {
+      // If the cone is not hit at all, the fields other than 'hit' do not
+      // matter, so we can assign them like this now
+      hit.intersection = hitPlane.intersection;
+      hit.normal = hitPlane.normal;
+      hit.distance = hitPlane.distance;
+      // If the radius is superior to one, it is not part of the cone's base
+      cout << glm::distance(hitPlane.intersection, baseCenter) << " DISTANCE"
+           << endl;
+      if (glm::distance(hitPlane.intersection, baseCenter) > BASE_RADIUS) {
+        hitPlane.hit = false;
+      }
+      hit.hit = hitPlane.hit;
+    }
     /* Equation of the cone is x^2 + z^2 - y^2 = 0
      * Search for gamma(t) = x^2 + z^2 - y^2*/
 
@@ -309,12 +335,38 @@ class Cone : public Object {
 
     // Possible point of intersection
     glm::vec4 candidate = localRayOrigin + localRayDirection * t;
+    // Setting homogenous coordinate for candidate point
     candidate[3] = 1.0f;
+
+    // Check that the possible intersection point on the side of the cone is
+    // legal
     if (candidate.y > 1 || candidate.y < 0) {
       return hit;
     }
+
+    // Computation of distances must be done in cartesian, global coordinates
+    float distanceSide = glm::distance(
+        glm::vec3(this->transformationMatrix * candidate), ray.origin);
+    // If the plane/base wasn't hit, set distance to infinity
+    float distanceBase = hitPlane.hit
+                             ? glm::distance(hitPlane.intersection, ray.origin)
+                             : INFINITY;
+
+    if (distanceBase != INFINITY) {
+      std::cout << distanceBase << " base distance " << std::endl;
+      std::cout << distanceSide << " side distance " << std::endl;
+    }
+
+    // If the cone's base was hit, check what part of the cone was hit first
+    if (distanceBase < distanceSide) {
+      std::cout << "PLANE BASE WAS CHOSEN HEHEHEHE" << std::endl;
+
+      // Base was hit first ==> The intersection values are already assigned
+      return hit;
+    }
+    // Otherwise, the side was hit first
     hit.intersection = glm::vec3(this->transformationMatrix * candidate);
-    hit.distance = glm::distance(ray.origin, hit.intersection);
+    hit.distance = distanceSide;
 
     // Compute the normal in the local coordinates using the gradient?
     glm::vec3 local_normal = glm::normalize(
@@ -443,7 +495,7 @@ void sceneDefinition() {
   red_specular.ambient = glm::vec3(0.01f, 0.03f, 0.03f);
   red_specular.specular = glm::vec3(0.5);
   red_specular.shininess = 10.0f;
-  objects.push_back(new Sphere(0.5, glm::vec3(-1, -2.5, 6), red_specular));
+  // objects.push_back(new Sphere(0.5, glm::vec3(-1, -2.5, 6), red_specular));
 
   // Definition of the blue sphere
   Material blue_dark;
@@ -451,7 +503,8 @@ void sceneDefinition() {
   blue_dark.ambient = glm::vec3(0.07f, 0.07f, 0.1f);
   blue_dark.specular = glm::vec3(0.6f);
   blue_dark.shininess = 100.0f;
-  objects.push_back(new Sphere(1.0f, glm::vec3(1, -2, 8), blue_dark));
+
+  // objects.push_back(new Sphere(1.0f, glm::vec3(1, -2, 8), blue_dark));
 
   // Definition of the green sphere
   Material green;
@@ -473,20 +526,22 @@ void sceneDefinition() {
 
   // Define planes (ASS2)
   glm::vec3 back_left_p = glm::vec3(-15, -3, -0.01);
-  // Left wall
-  objects.push_back(new Plane(back_left_p, x_norm, blue_dark));
-  // Bottom wall
-  objects.push_back(new Plane(back_left_p, y_norm, red_specular));
-  // Back wall
-  objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
+  /*  // Left wall
+    objects.push_back(new Plane(back_left_p, x_norm, blue_dark));
+    // Bottom wall
+    objects.push_back(new Plane(back_left_p, y_norm, red_specular));*/
+  // Back wall TODO: Uncomment
+  // objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
 
   glm::vec3 top_right_p = glm::vec3(15, 27, 30);
-  // Right wall
-  objects.push_back(new Plane(top_right_p, x_norm, blue_dark));
-  // Front wall
-  objects.push_back(new Plane(top_right_p, y_norm, green));
-  // Top wall
-  objects.push_back(new Plane(top_right_p, z_norm, green));
+  /*
+    // Right wall
+    objects.push_back(new Plane(top_right_p, x_norm, blue_dark));
+    // Front wall
+    objects.push_back(new Plane(top_right_p, y_norm, green));
+    // Top wall
+    objects.push_back(new Plane(top_right_p, z_norm, green));
+  */
 
   // Assignment 2: Adding cones
   Material yellow;
@@ -505,7 +560,7 @@ void sceneDefinition() {
 
   Cone *yellow_cone = new Cone(yellow);
   yellow_cone->setTransformation(yellowConeTraMat);
-  objects.push_back(yellow_cone);
+  // objects.push_back(yellow_cone);
 
   glm::mat4 translation_green_cone = glm::translate(glm::vec3(6, -3, 7));
   glm::mat4 rotation_green_cone = glm::rotate(
