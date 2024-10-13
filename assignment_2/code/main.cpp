@@ -292,12 +292,12 @@ class Cone : public Object {
     if (hitPlane.hit) {
       // If the cone is not hit at all, the fields other than 'hit' do not
       // matter, so we can assign them like this now
-      hit.intersection = hitPlane.intersection;
-      hit.normal = hitPlane.normal;
-      hit.distance = hitPlane.distance;
+      hit.intersection = glm::vec3(this->transformationMatrix *
+                                   glm::vec4(hitPlane.intersection, 1.0f));
+      hit.normal = glm::normalize(
+          glm::vec3(this->normalMatrix * glm::vec4(hitPlane.normal, 0.0f)));
+      hit.distance = glm::distance(hit.intersection, ray.origin);
       // If the radius is superior to one, it is not part of the cone's base
-      cout << glm::distance(hitPlane.intersection, baseCenter) << " DISTANCE"
-           << endl;
       if (glm::distance(hitPlane.intersection, baseCenter) > BASE_RADIUS) {
         hitPlane.hit = false;
       }
