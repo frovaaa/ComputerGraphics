@@ -399,7 +399,7 @@ class Light {
 };
 
 vector<Light *> lights;  ///< A list of lights in the scene
-glm::vec3 ambient_light(0.1, 0.1, 0.1);
+glm::vec3 ambient_light(0.02, 0.02, 0.02);
 vector<Object *> objects;  ///< A list of all objects in the scene
 
 /** Function for computing color of an object according to the Phong Model
@@ -525,9 +525,9 @@ void sceneDefinition() {
   // objects.push_back(new Sphere(1.0f, glm::vec3(2, -2, 6), green));
 
   // Define lights
-  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(0.4)));
-  lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(0.4)));
-  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.4)));
+  lights.push_back(new Light(glm::vec3(0, 5, 5), glm::vec3(5)));
+  lights.push_back(new Light(glm::vec3(0, 2, 10), glm::vec3(4)));
+  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(3)));
 
   // Planes norms
   glm::vec3 x_norm = glm::vec3(1, 0, 0);
@@ -549,8 +549,7 @@ void sceneDefinition() {
   // Above/top wall ??
   objects.push_back(new Plane(top_right_p, y_norm, green));
   // Front wall
-  objects.push_back(new Plane(top_right_p, z_norm, red_specular));
-
+  objects.push_back(new Plane(top_right_p, z_norm, green));
   // Assignment 2: Adding cones
   Material yellow;
   yellow.diffuse = glm::vec3(0.9f, 0.9f, 0.0f);
@@ -569,33 +568,33 @@ void sceneDefinition() {
   Cone *yellow_cone = new Cone(yellow);
   yellow_cone->setTransformation(yellowConeTraMat);
   objects.push_back(yellow_cone);
-  /*
-    glm::mat4 translation_green_cone = glm::translate(glm::vec3(0, -3, 7));
-    glm::mat4 rotation_green_cone = glm::rotate(
-        glm::mat4(1.0f), (float)glm::radians(10.0f), glm::vec3(0.0f, 1.0f,
-    0.0f)); glm::mat4 scale_green_cone =
-    glm::scale(glm::vec3(1.0f, 1.0f, 1.0f)); glm::mat4 greenConeTraMat =
-        translation_green_cone * rotation_green_cone * scale_green_cone;
+  glm::mat4 translation_green_cone = glm::translate(glm::vec3(0, -3, 7));
+  glm::mat4 rotation_green_cone = glm::rotate(
+      glm::mat4(1.0f), (float)glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+  glm::mat4 scale_green_cone = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
+  glm::mat4 greenConeTraMat =
+      translation_green_cone * rotation_green_cone * scale_green_cone;
 
-    Cone *green_cone = new Cone(green);
-    green_cone->setTransformation(greenConeTraMat);
-    objects.push_back(green_cone);*/
+  Cone *green_cone = new Cone(green);
+  green_cone->setTransformation(greenConeTraMat);
+  objects.push_back(green_cone);
 }
 
 glm::vec3 toneMapping(glm::vec3 intensity) {
   /*  ---- Exercise 3-----
-
    Implement a tonemapping strategy and gamma correction for a correct display.
   */
-  // TODO: Tonemapping with power function
-  float alpha = 25.0f;
-  float beta = 0.7f;
-  glm::vec3 tone = glm::vec3(alpha * pow(intensity[0], beta),
-                             alpha * pow(intensity[1], beta),
-                             alpha * pow(intensity[2], beta));
+  // Tonemapping with power function
+  float alpha = 5.5f;
+  float beta = 1.3f;
+  intensity = glm::vec3(alpha * pow(intensity[0], beta),
+                        alpha * pow(intensity[1], beta),
+                        alpha * pow(intensity[2], beta));
   // TODO: Gamma correction
+  float gamma_inv = 1.0 / 2.2f;
+  intensity = glm::vec3(glm::pow(intensity, glm::vec3(gamma_inv)));
 
-  return tone;
+  return intensity;
 }
 
 int main(int argc, const char *argv[]) {
