@@ -293,20 +293,20 @@ class Cone : public Object {
     glm::vec3 baseCenter = glm::vec3(0.0f, 1.0f, 0.0f);
 
     // Check if the base of the cone was hit
-    if (hitPlane.hit) {
-      // If the cone is not hit at all, the fields other than 'hit' do not
-      // matter, so we can assign them like this now
-      hit.intersection = hitPlane.intersection;
-      hit.normal = hitPlane.normal;
-      hit.distance = glm::distance(hit.intersection, ray.origin);
-      // If the radius is superior to one, it is not part of the cone's base
-      if (glm::distance(glm::vec3(this->inverseTransformationMatrix *
-                                  glm::vec4(hitPlane.intersection, 1.0f)),
-                        baseCenter) > BASE_RADIUS) {
-        hitPlane.hit = false;
-      }
-      hit.hit = hitPlane.hit;
-    }
+    /*    if (hitPlane.hit) {
+          // If the cone is not hit at all, the fields other than 'hit' do not
+          // matter, so we can assign them like this now
+          hit.intersection = hitPlane.intersection;
+          hit.normal = hitPlane.normal;
+          hit.distance = glm::distance(hit.intersection, ray.origin);
+          // If the radius is superior to one, it is not part of the cone's base
+          if (glm::distance(glm::vec3(this->inverseTransformationMatrix *
+                                      glm::vec4(hitPlane.intersection, 1.0f)),
+                            baseCenter) > BASE_RADIUS) {
+            hitPlane.hit = false;
+          }
+          hit.hit = hitPlane.hit;
+        }*/
     /* Equation of the cone is x^2 + z^2 - y^2 = 0
      * Search for gamma(t) = x^2 + z^2 - y^2*/
 
@@ -440,10 +440,16 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
      Include light attenuation due to the distance to the light source.
 
     */
+    float att_d = 1;
 
+    float r = glm::distance(point, lights[i]->position);
+    if (r > 0) {
+      att_d = 1 / (r * r);
+    }
     // Add the contribution of the light source to the final color
-    color += lights[i]->color * (diffuse + specular);
+    color += lights[i]->color * (diffuse + specular) * att_d;
   }
+
   // Add ambient illumination
   color += material.ambient * ambient_light;
   // The final color has to be clamped so the values do not go beyond 0 and 1.
@@ -499,7 +505,7 @@ void sceneDefinition() {
   red_specular.ambient = glm::vec3(0.01f, 0.03f, 0.03f);
   red_specular.specular = glm::vec3(0.5);
   red_specular.shininess = 10.0f;
-  // objects.push_back(new Sphere(0.5, glm::vec3(-1, -2.5, 6), red_specular));
+  objects.push_back(new Sphere(0.5, glm::vec3(-1, -2.5, 6), red_specular));
 
   // Definition of the blue sphere
   Material blue_dark;
@@ -508,7 +514,7 @@ void sceneDefinition() {
   blue_dark.specular = glm::vec3(0.6f);
   blue_dark.shininess = 100.0f;
 
-  // objects.push_back(new Sphere(1.0f, glm::vec3(1, -2, 8), blue_dark));
+  objects.push_back(new Sphere(1.0f, glm::vec3(1, -2, 8), blue_dark));
 
   // Definition of the green sphere
   Material green;
@@ -562,28 +568,34 @@ void sceneDefinition() {
 
   Cone *yellow_cone = new Cone(yellow);
   yellow_cone->setTransformation(yellowConeTraMat);
-  // objects.push_back(yellow_cone);
+  objects.push_back(yellow_cone);
+  /*
+    glm::mat4 translation_green_cone = glm::translate(glm::vec3(0, -3, 7));
+    glm::mat4 rotation_green_cone = glm::rotate(
+        glm::mat4(1.0f), (float)glm::radians(10.0f), glm::vec3(0.0f, 1.0f,
+    0.0f)); glm::mat4 scale_green_cone =
+    glm::scale(glm::vec3(1.0f, 1.0f, 1.0f)); glm::mat4 greenConeTraMat =
+        translation_green_cone * rotation_green_cone * scale_green_cone;
 
-  glm::mat4 translation_green_cone = glm::translate(glm::vec3(0, -3, 7));
-  glm::mat4 rotation_green_cone = glm::rotate(
-      glm::mat4(1.0f), (float)glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-  glm::mat4 scale_green_cone = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
-  glm::mat4 greenConeTraMat =
-      translation_green_cone * rotation_green_cone * scale_green_cone;
-
-  Cone *green_cone = new Cone(green);
-  green_cone->setTransformation(greenConeTraMat);
-  objects.push_back(green_cone);
+    Cone *green_cone = new Cone(green);
+    green_cone->setTransformation(greenConeTraMat);
+    objects.push_back(green_cone);*/
 }
 
 glm::vec3 toneMapping(glm::vec3 intensity) {
   /*  ---- Exercise 3-----
 
    Implement a tonemapping strategy and gamma correction for a correct display.
-
   */
+  // TODO: Tonemapping with power function
+  float alpha = 25.0f;
+  float beta = 0.7f;
+  glm::vec3 tone = glm::vec3(alpha * pow(intensity[0], beta),
+                             alpha * pow(intensity[1], beta),
+                             alpha * pow(intensity[2], beta));
+  // TODO: Gamma correction
 
-  return intensity;
+  return tone;
 }
 
 int main(int argc, const char *argv[]) {
@@ -618,15 +630,14 @@ int main(int argc, const char *argv[]) {
 
       Ray ray(origin, direction);  // ray traversal
 
-      image.setPixel(i, j, trace_ray(ray));
-
+      // image.setPixel(i, j, trace_ray(ray));
+      image.setPixel(i, j,
+                     glm::clamp(toneMapping(trace_ray(ray)), glm::vec3(0.0),
+                                glm::vec3(1.0)));
       /*  ---- Exercise 3-----
       After implementing the tonemapping function
       use the following line
 
-      image.setPixel(i, j,
-              glm::clamp(toneMapping(trace_ray(ray)), glm::vec3(0.0),
-                        glm::vec3(1.0)));
       */
     }
 
