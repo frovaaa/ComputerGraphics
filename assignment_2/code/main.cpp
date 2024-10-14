@@ -356,14 +356,14 @@ class Cone : public Object {
                              ? glm::distance(hitPlane.intersection, ray.origin)
                              : INFINITY;
 
-    if (distanceBase != INFINITY) {
-      std::cout << distanceBase << " base distance " << std::endl;
-      std::cout << distanceSide << " side distance " << std::endl;
-    }
+    /*    if (distanceBase != INFINITY) {
+          std::cout << distanceBase << " base distance " << std::endl;
+          std::cout << distanceSide << " side distance " << std::endl;
+        }*/
 
     // If the cone's base was hit, check what part of the cone was hit first
     if (distanceBase < distanceSide) {
-      std::cout << "PLANE BASE WAS CHOSEN HEHEHEHE" << std::endl;
+      // std::cout << "plane base was chosen" << std::endl;
 
       // Base was hit first ==> The intersection values are already assigned
       return hit;
@@ -525,9 +525,9 @@ void sceneDefinition() {
   // objects.push_back(new Sphere(1.0f, glm::vec3(2, -2, 6), green));
 
   // Define lights
-  lights.push_back(new Light(glm::vec3(0, 5, 5), glm::vec3(5)));
-  lights.push_back(new Light(glm::vec3(0, 2, 10), glm::vec3(4)));
-  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(3)));
+  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(3)));
+  lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(2)));
+  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(1)));
 
   // Planes norms
   glm::vec3 x_norm = glm::vec3(1, 0, 0);
@@ -557,6 +557,8 @@ void sceneDefinition() {
   yellow.specular = glm::vec3(1.0f);
   yellow.shininess = 64.0f;
 
+  // Yellow cone definition
+
   glm::mat4 translation_yellow_cone = glm::translate(glm::vec3(5, 9, 14));
   glm::mat4 rotation_yellow_cone =
       glm::rotate(glm::mat4(1.0f), (float)glm::radians(180.0f),
@@ -568,6 +570,7 @@ void sceneDefinition() {
   Cone *yellow_cone = new Cone(yellow);
   yellow_cone->setTransformation(yellowConeTraMat);
   objects.push_back(yellow_cone);
+
   glm::mat4 translation_green_cone = glm::translate(glm::vec3(0, -3, 7));
   glm::mat4 rotation_green_cone = glm::rotate(
       glm::mat4(1.0f), (float)glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -584,15 +587,23 @@ glm::vec3 toneMapping(glm::vec3 intensity) {
   /*  ---- Exercise 3-----
    Implement a tonemapping strategy and gamma correction for a correct display.
   */
-  // Tonemapping with power function
-  float alpha = 5.5f;
-  float beta = 1.3f;
+  /* Tonemapping with power function */
+  // Alpha has no constraints
+  float alpha = 3.5f;
+  // Beta must be less than 1
+  float beta = 0.9f;
   intensity = glm::vec3(alpha * pow(intensity[0], beta),
                         alpha * pow(intensity[1], beta),
                         alpha * pow(intensity[2], beta));
-  // TODO: Gamma correction
+  /* Gamma correction */
+  // Usually gamma ~= 2.2, 1.8 for macs
   float gamma_inv = 1.0 / 2.2f;
-  intensity = glm::vec3(glm::pow(intensity, glm::vec3(gamma_inv)));
+  intensity =
+      glm::vec3(pow(intensity[0], gamma_inv), pow(intensity[1], gamma_inv),
+                pow(intensity[2], gamma_inv));
+
+  // Other way of writing : intensity = glm::vec3(glm::pow(intensity,
+  // glm::vec3(gamma_inv)));
 
   return intensity;
 }
