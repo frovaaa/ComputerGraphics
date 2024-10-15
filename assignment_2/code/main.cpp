@@ -91,13 +91,11 @@ class Object {
 
     /* ----- Exercise 2 ---------
     Set the two remaining matrices
-
     inverseTransformationMatrix =
     normalMatrix =
-
     */
     inverseTransformationMatrix = glm::inverse(transformationMatrix);
-    normalMatrix = glm::transpose(glm::inverse(transformationMatrix));
+    normalMatrix = glm::transpose(inverseTransformationMatrix);
   }
 };
 
@@ -230,10 +228,11 @@ class Plane : public Object {
       if (t <= 0) {
         return hit;
       }
-
+      // std:: cout << this->point.y << std::endl;
       hit.hit = true;
-      hit.intersection = ray.direction * t;
+      hit.intersection = ray.origin + ray.direction * t;
       hit.distance = t;
+
       // Here we compute if we need to flip the sign of the norm or not
       // Based on the position of the camera, so the plane's color is not
       // "one-view" only But actually renders on both sides
@@ -266,6 +265,7 @@ class Cone : public Object {
     hit.normal = glm::vec3(0);
     hit.object = this;
 
+    /* Conversion to homogenous and local coordinates */
     // Convertion to Homogeneous coordinates
     glm::vec4 localRayOrigin = glm::vec4(ray.origin, 1.0f);
     glm::vec4 localRayDirection = glm::vec4(ray.direction, 0.0f);
@@ -293,20 +293,30 @@ class Cone : public Object {
     glm::vec3 baseCenter = glm::vec3(0.0f, 1.0f, 0.0f);
 
     // Check if the base of the cone was hit
-    /*    if (hitPlane.hit) {
-          // If the cone is not hit at all, the fields other than 'hit' do not
-          // matter, so we can assign them like this now
-          hit.intersection = hitPlane.intersection;
-          hit.normal = hitPlane.normal;
-          hit.distance = glm::distance(hit.intersection, ray.origin);
-          // If the radius is superior to one, it is not part of the cone's base
-          if (glm::distance(glm::vec3(this->inverseTransformationMatrix *
-                                      glm::vec4(hitPlane.intersection, 1.0f)),
-                            baseCenter) > BASE_RADIUS) {
-            hitPlane.hit = false;
-          }
-          hit.hit = hitPlane.hit;
-        }*/
+    if (hitPlane.hit) {
+      // If the cone is not hit at all, the fields other than 'hit' do not
+      // matter, so we can assign them like this now
+      // hit.intersection and hit.normal and distance should be in global
+      // coordinates
+      hit.intersection = glm::vec3(this->transformationMatrix *
+                                   glm::vec4(hitPlane.intersection, 1.0f));
+      hit.normal = glm::normalize(
+          glm::vec3(this->normalMatrix * glm::vec4(hitPlane.normal, 0.0f)));
+      hit.distance = glm::distance(hit.intersection, ray.origin);
+      hit.hit = hitPlane.hit;
+
+      // TODO: hit fields are in global coordinates right now
+      /*            if
+         (glm::distance(glm::vec3(this->inverseTransformationMatrix *
+                                              glm::vec4(hitPlane.intersection, 1.0f)),
+                                    baseCenter) > BASE_RADIUS) {*/
+      /* If the radius is superior to one, it is not part of the cone's base */
+      // hitPlane.intersection is in local coordinates
+      if (hit.hit &&
+          glm::distance(hitPlane.intersection, baseCenter) > BASE_RADIUS) {
+        hit.hit = false;
+      }
+    }
     /* Equation of the cone is x^2 + z^2 - y^2 = 0
      * Search for gamma(t) = x^2 + z^2 - y^2*/
 
@@ -337,8 +347,8 @@ class Cone : public Object {
       return hit;
     }
 
-    // Possible point of intersection
-    glm::vec4 candidate = localRayOrigin + localRayDirection * t;
+    // Possible point of intersection on the side of the cone
+    glm::vec4 candidate = localRayOrigin + (localRayDirection * t);
     // Setting homogenous coordinate for candidate point
     candidate[3] = 1.0f;
 
@@ -348,31 +358,21 @@ class Cone : public Object {
       return hit;
     }
 
-    // Computation of distances must be done in cartesian, global coordinates
     float distanceSide = glm::distance(
         glm::vec3(this->transformationMatrix * candidate), ray.origin);
     // If the plane/base wasn't hit, set distance to infinity
-    float distanceBase = hitPlane.hit
-                             ? glm::distance(hitPlane.intersection, ray.origin)
-                             : INFINITY;
-
-    /*    if (distanceBase != INFINITY) {
-          std::cout << distanceBase << " base distance " << std::endl;
-          std::cout << distanceSide << " side distance " << std::endl;
-        }*/
+    float distanceBase = hit.hit ? hit.distance : INFINITY;
 
     // If the cone's base was hit, check what part of the cone was hit first
     if (distanceBase < distanceSide) {
-      // std::cout << "plane base was chosen" << std::endl;
-
-      // Base was hit first ==> The intersection values are already assigned
       return hit;
     }
     // Otherwise, the side was hit first
+    // Transform coordinates to global
     hit.intersection = glm::vec3(this->transformationMatrix * candidate);
-    hit.distance = distanceSide;
+    hit.distance = glm::distance(hit.intersection, ray.origin);
 
-    // Compute the normal in the local coordinates using the gradient?
+    // Compute the normal in the local coordinates using the gradient
     glm::vec3 local_normal = glm::normalize(
         glm::vec3(2 * candidate.x, -2 * candidate.y, 2 * candidate.z));
 
@@ -525,9 +525,9 @@ void sceneDefinition() {
   // objects.push_back(new Sphere(1.0f, glm::vec3(2, -2, 6), green));
 
   // Define lights
-  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(3)));
-  lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(2)));
-  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(1)));
+  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(20)));
+  lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(5)));
+  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(6)));
 
   // Planes norms
   glm::vec3 x_norm = glm::vec3(1, 0, 0);
@@ -570,11 +570,11 @@ void sceneDefinition() {
   Cone *yellow_cone = new Cone(yellow);
   yellow_cone->setTransformation(yellowConeTraMat);
   objects.push_back(yellow_cone);
-
-  glm::mat4 translation_green_cone = glm::translate(glm::vec3(0, -3, 7));
+  // TODO: pos green cone: glm::vec3(0, -3, 7)
+  glm::mat4 translation_green_cone = glm::translate(glm::vec3(6, -3, 7));
   glm::mat4 rotation_green_cone = glm::rotate(
-      glm::mat4(1.0f), (float)glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-  glm::mat4 scale_green_cone = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
+      glm::mat4(1.0f), (float)glm::radians(67.5f), glm::vec3(0.0f, 0.0f, 1.0f));
+  glm::mat4 scale_green_cone = glm::scale(glm::vec3(1.0f, 3.0f, 1.0f));
   glm::mat4 greenConeTraMat =
       translation_green_cone * rotation_green_cone * scale_green_cone;
 
