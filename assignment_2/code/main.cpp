@@ -207,6 +207,7 @@ class Plane : public Object {
   }
 
   Hit intersect(Ray ray) {
+    /* Assignment 2: intersect function for plane and ray*/
     Hit hit;
     hit.hit = false;
     hit.intersection = glm::vec3(0);
@@ -215,8 +216,8 @@ class Plane : public Object {
     hit.object = this;
 
     float NdotD = glm::dot(this->normal, ray.direction);
-    // If the dotproduct is 0, the ray direction is parallel to the plane
-    // so no hit
+    // If the dotproduct is 0, the ray direction is parallel to the plane so no
+    // hit
     if (equalFloats(0, NdotD, 0.001)) {
       return hit;
     } else {
@@ -228,14 +229,13 @@ class Plane : public Object {
       if (t <= 0) {
         return hit;
       }
-      // std:: cout << this->point.y << std::endl;
       hit.hit = true;
       hit.intersection = ray.origin + ray.direction * t;
       hit.distance = t;
 
-      // Here we compute if we need to flip the sign of the norm or not
-      // Based on the position of the camera, so the plane's color is not
-      // "one-view" only But actually renders on both sides
+      /* Compute whether the sign or the normal must be flipped or not
+       based on the position of the camera, so that the plane's color is not
+       "one-view" only but actually renders on both sides. */
       hit.normal = glm::dot(-(ray.direction), this->normal) < 0
                        ? -(this->normal)
                        : this->normal;
@@ -256,6 +256,15 @@ class Cone : public Object {
   }
 
   Hit intersect(Ray ray) {
+    /*  ---- Exercise 2 -----
+     * Implement the ray-cone intersection. Before intersecting the ray with the
+     * cone, make sure that you transform the ray into the local coordinate
+     * system. Remember about normalizing all the directions after
+     * transformations.
+     */
+
+    /* Assignment 2: Intersect function for cone and ray */
+
     // Radius of the cone's base
     float BASE_RADIUS = 1.0f;
     Hit hit;
@@ -266,7 +275,7 @@ class Cone : public Object {
     hit.object = this;
 
     /* Conversion to homogenous and local coordinates */
-    // Convertion to Homogeneous coordinates
+    // Conversion to Homogeneous coordinates
     glm::vec4 localRayOrigin = glm::vec4(ray.origin, 1.0f);
     glm::vec4 localRayDirection = glm::vec4(ray.direction, 0.0f);
 
@@ -275,17 +284,9 @@ class Cone : public Object {
     localRayDirection =
         glm::normalize(this->inverseTransformationMatrix * localRayDirection);
 
+    // We need a local ray to pass to the plane intersect function
     Ray *localRay =
         new Ray(glm::vec3(localRayOrigin), glm::vec3(localRayDirection));
-
-    /*  ---- Exercise 2 -----
-
-     Implement the ray-cone intersection. Before intersecting the ray with the
-     cone, make sure that you transform the ray into the local coordinate
-     system. Remember about normalizing all the directions after
-     transformations.
-
-    */
 
     // Checking if the ray hits the plane (base of the cone)
     Hit hitPlane = this->plane->intersect(*localRay);
@@ -294,10 +295,10 @@ class Cone : public Object {
 
     // Check if the base of the cone was hit
     if (hitPlane.hit) {
-      // If the cone is not hit at all, the fields other than 'hit' do not
-      // matter, so we can assign them like this now
-      // hit.intersection and hit.normal and distance should be in global
-      // coordinates
+      /* If the cone is not hit at all, the fields other than 'hit' are never
+       * used, so we can assigned them like this now. Reminder: fields of the
+       * Hit structure are in global coordinates
+       */
       hit.intersection = glm::vec3(this->transformationMatrix *
                                    glm::vec4(hitPlane.intersection, 1.0f));
       hit.normal = glm::normalize(
@@ -305,11 +306,6 @@ class Cone : public Object {
       hit.distance = glm::distance(hit.intersection, ray.origin);
       hit.hit = hitPlane.hit;
 
-      // TODO: hit fields are in global coordinates right now
-      /*            if
-         (glm::distance(glm::vec3(this->inverseTransformationMatrix *
-                                              glm::vec4(hitPlane.intersection, 1.0f)),
-                                    baseCenter) > BASE_RADIUS) {*/
       /* If the radius is superior to one, it is not part of the cone's base */
       // hitPlane.intersection is in local coordinates
       if (hit.hit &&
@@ -320,6 +316,7 @@ class Cone : public Object {
     /* Equation of the cone is x^2 + z^2 - y^2 = 0
      * Search for gamma(t) = x^2 + z^2 - y^2*/
 
+    /* Solve with the quadratic formula */
     // Quadratic formula coefficients
     float a = pow(localRayDirection.x, 2) + pow(localRayDirection.z, 2) -
               pow(localRayDirection.y, 2);
@@ -340,7 +337,7 @@ class Cone : public Object {
     // Compute both t
     float t_1 = (-b + sqrt(delta)) / (2 * a);
     float t_2 = (-b - sqrt(delta)) / (2 * a);
-    // Choose smallest one
+    // Choose the smallest one
     if (t_1 > 0 && t_1 < t) t = t_1;
     if (t_2 > 0 && t_2 < t) t = t_2;
     if (t == INFINITY) {
@@ -502,75 +499,81 @@ glm::vec3 trace_ray(Ray ray) {
 void sceneDefinition() {
   Material red_specular;
   red_specular.diffuse = glm::vec3(1.0f, 0.3f, 0.3f);
-  red_specular.ambient = glm::vec3(0.01f, 0.03f, 0.03f);
+  red_specular.ambient = glm::vec3(3.0f, 0.03f, 0.03f);
   red_specular.specular = glm::vec3(0.5);
   red_specular.shininess = 10.0f;
-  objects.push_back(new Sphere(0.5, glm::vec3(-1, -2.5, 6), red_specular));
 
-  // Definition of the blue sphere
   Material blue_dark;
   blue_dark.diffuse = glm::vec3(0.7f, 0.7f, 1.0f);
-  blue_dark.ambient = glm::vec3(0.07f, 0.07f, 0.1f);
+  blue_dark.ambient = glm::vec3(0.3f, 0.3f, 2.5f);
   blue_dark.specular = glm::vec3(0.6f);
   blue_dark.shininess = 100.0f;
 
-  objects.push_back(new Sphere(1.0f, glm::vec3(1, -2, 8), blue_dark));
-
-  // Definition of the green sphere
   Material green;
   green.diffuse = glm::vec3(0.7f, 0.9f, 0.7f);
-  green.ambient = glm::vec3(0.07f, 0.09f, 0.07f);
+  green.ambient = glm::vec3(0.2f, 3.0, 0.4f);
   green.specular = glm::vec3(0.0f);
   green.shininess = 0.0f;
+
+  /* Assignment 2: Yellow material for the highly specular cone*/
+  Material yellow;
+  yellow.diffuse = glm::vec3(0.9f, 0.9f, 0.0f);
+  yellow.ambient = glm::vec3(0.03f, 0.003f, 0.0f);
+  yellow.specular = glm::vec3(10);
+  yellow.shininess = 100.0f;
+
+  /* Add spheres */
   // objects.push_back(new Sphere(1.0f, glm::vec3(2, -2, 6), green));
 
-  // Define lights
+  objects.push_back(new Sphere(0.5, glm::vec3(-1, -2.5, 6), red_specular));
+  objects.push_back(new Sphere(1.0f, glm::vec3(1, -2, 8), blue_dark));
+
+  /* Define lights */
   lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(20)));
   lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(5)));
   lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(6)));
 
-  // Planes norms
+  /* Assignment 2: Planes */
+  // Points at extremities of the box (top right and back left)
+  glm::vec3 top_right_p = glm::vec3(15, 27, 30);
+  glm::vec3 back_left_p = glm::vec3(-15, -3, -0.01);
+
+  // Planes normals
   glm::vec3 x_norm = glm::vec3(1, 0, 0);
   glm::vec3 y_norm = glm::vec3(0, 1, 0);
   glm::vec3 z_norm = glm::vec3(0, 0, 1);
 
-  // Define planes (ASS2)
-  glm::vec3 back_left_p = glm::vec3(-15, -3, -0.01);
   // Left wall
   objects.push_back(new Plane(back_left_p, x_norm, blue_dark));
   // Bottom wall
   objects.push_back(new Plane(back_left_p, y_norm, red_specular));
-  // Back wall TODO: Uncomment
-  // objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
+  // Back wall
+  objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
 
-  glm::vec3 top_right_p = glm::vec3(15, 27, 30);
   // Right wall
   objects.push_back(new Plane(top_right_p, x_norm, blue_dark));
-  // Above/top wall ??
+  // Above/top wall
   objects.push_back(new Plane(top_right_p, y_norm, green));
   // Front wall
   objects.push_back(new Plane(top_right_p, z_norm, green));
-  // Assignment 2: Adding cones
-  Material yellow;
-  yellow.diffuse = glm::vec3(0.9f, 0.9f, 0.0f);
-  yellow.ambient = glm::vec3(0.09f, 0.09f, 0.0f);
-  yellow.specular = glm::vec3(1.0f);
-  yellow.shininess = 64.0f;
 
-  // Yellow cone definition
+  /* Assignment 2: Adding cones */
 
+  /* Transformation matrices for the yellow cone */
   glm::mat4 translation_yellow_cone = glm::translate(glm::vec3(5, 9, 14));
   glm::mat4 rotation_yellow_cone =
       glm::rotate(glm::mat4(1.0f), (float)glm::radians(180.0f),
                   glm::vec3(0.0f, 0.0f, 1.0f));
-  glm::mat4 scale_yellow_cone = glm::scale(glm::vec3(3.0f, 12.0f, 1.0f));
+  glm::mat4 scale_yellow_cone = glm::scale(glm::vec3(3.0f, 12.0f, 3.0f));
   glm::mat4 yellowConeTraMat =
       translation_yellow_cone * rotation_yellow_cone * scale_yellow_cone;
 
+  // Define yellow cone
   Cone *yellow_cone = new Cone(yellow);
+  // Set the transformation matrix for the yellow cone
   yellow_cone->setTransformation(yellowConeTraMat);
-  objects.push_back(yellow_cone);
-  // TODO: pos green cone: glm::vec3(0, -3, 7)
+
+  /* Transformation matrices for the green cone */
   glm::mat4 translation_green_cone = glm::translate(glm::vec3(6, -3, 7));
   glm::mat4 rotation_green_cone = glm::rotate(
       glm::mat4(1.0f), (float)glm::radians(67.5f), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -580,6 +583,9 @@ void sceneDefinition() {
 
   Cone *green_cone = new Cone(green);
   green_cone->setTransformation(greenConeTraMat);
+
+  /* Push the cones */
+  objects.push_back(yellow_cone);
   objects.push_back(green_cone);
 }
 
@@ -589,7 +595,7 @@ glm::vec3 toneMapping(glm::vec3 intensity) {
   */
   /* Tonemapping with power function */
   // Alpha has no constraints
-  float alpha = 3.5f;
+  float alpha = 2.5f;
   // Beta must be less than 1
   float beta = 0.9f;
   intensity = glm::vec3(alpha * pow(intensity[0], beta),
