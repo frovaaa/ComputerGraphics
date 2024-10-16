@@ -91,9 +91,8 @@ class Object {
 
     /* ----- Exercise 2 ---------
     Set the two remaining matrices
-    inverseTransformationMatrix =
-    normalMatrix =
     */
+    /* Assignment 2: set matrices */
     inverseTransformationMatrix = glm::inverse(transformationMatrix);
     normalMatrix = glm::transpose(inverseTransformationMatrix);
   }
@@ -216,8 +215,8 @@ class Plane : public Object {
     hit.object = this;
 
     float NdotD = glm::dot(this->normal, ray.direction);
-    // If the dotproduct is 0, the ray direction is parallel to the plane so no
-    // hit
+    // If the dotproduct is 0, the ray direction is parallel to the plane so
+    // there is no intersection
     if (equalFloats(0, NdotD, 0.001)) {
       return hit;
     } else {
@@ -296,7 +295,7 @@ class Cone : public Object {
     // Check if the base of the cone was hit
     if (hitPlane.hit) {
       /* If the cone is not hit at all, the fields other than 'hit' are never
-       * used, so we can assigned them like this now. Reminder: fields of the
+       * used, so we can assign them like this now. Reminder: fields of the
        * Hit structure are in global coordinates
        */
       hit.intersection = glm::vec3(this->transformationMatrix *
@@ -370,13 +369,23 @@ class Cone : public Object {
     hit.distance = glm::distance(hit.intersection, ray.origin);
 
     // Compute the normal in the local coordinates using the gradient
-    glm::vec3 local_normal = glm::normalize(
+    glm::vec3 localNormal = glm::normalize(
         glm::vec3(2 * candidate.x, -2 * candidate.y, 2 * candidate.z));
 
     // Transforming the normal into global coordinates
     hit.normal = glm::normalize(
-        glm::vec3(this->normalMatrix * glm::vec4(local_normal, 0.0f)));
+        glm::vec3(this->normalMatrix * glm::vec4(localNormal, 0.0f)));
 
+    /* Our first guess to compute the normal using a 180° rotation around the
+    axis (swapping the direction only at the end).
+     * It isn't completely correct (cf shadow of laid down cone)
+    glm::mat4 rot_n = glm::rotate(glm::mat4(1.0f), (float)glm::radians(180.0f),
+    glm::vec3(0.0f, 1.0f, 0.0f)); hit.normal = glm::normalize(rot_n *
+    (glm::normalize(this->inverseTransformationMatrix *
+    glm::vec4(hit.intersection, 1.0f)))); hit.normal =
+    -glm::normalize(glm::vec3(glm::vec4(hit.normal, 0.0f) *
+    this->normalMatrix));
+    */
     hit.hit = true;
     return hit;
   }
@@ -437,6 +446,7 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
      Include light attenuation due to the distance to the light source.
 
     */
+    /* Assignment 2: Distance attenuation*/
     float att_d = 1;
 
     float r = glm::distance(point, lights[i]->position);
@@ -578,8 +588,10 @@ void sceneDefinition() {
 
   /* Transformation matrices for the green cone */
   glm::mat4 translation_green_cone = glm::translate(glm::vec3(6, -3, 7));
+  /* To compute the right angle to lay down the cone on the ground, we should
+   * take arctan(b/|a|), here it's arctan(3) */
   glm::mat4 rotation_green_cone = glm::rotate(
-      glm::mat4(1.0f), (float)glm::radians(71.5f), glm::vec3(0.0f, 0.0f, 1.0f));
+      glm::mat4(1.0f), (float)glm::atan(3), glm::vec3(0.0f, 0.0f, 1.0f));
   glm::mat4 scale_green_cone = glm::scale(glm::vec3(1.0f, 3.0f, 1.0f));
   glm::mat4 greenConeTraMat =
       translation_green_cone * rotation_green_cone * scale_green_cone;
@@ -596,7 +608,7 @@ glm::vec3 toneMapping(glm::vec3 intensity) {
   /*  ---- Exercise 3-----
    Implement a tonemapping strategy and gamma correction for a correct display.
   */
-  /* Tonemapping with power function */
+  /* Assignment 2: Tonemapping with power function and gamma correction */
   // Alpha has no constraints
   float alpha = 2.5f;
   // Beta must be less than 1
