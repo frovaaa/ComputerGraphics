@@ -441,7 +441,10 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
 
     float r = glm::distance(point, lights[i]->position);
     if (r > 0) {
-      att_d = 1 / (r * r);
+      float alpha1 = 0.01;
+      float alpha2 = 0.01;
+      float alpha3 = 0.01;
+      att_d = 1 / (alpha1 + alpha2 * r + alpha3 * r * r);
     }
     // Add the contribution of the light source to the final color
     color += lights[i]->color * (diffuse + specular) * att_d;
@@ -498,28 +501,28 @@ glm::vec3 trace_ray(Ray ray) {
  */
 void sceneDefinition() {
   Material red_specular;
-  red_specular.diffuse = glm::vec3(1.0f, 0.3f, 0.3f);
-  red_specular.ambient = glm::vec3(3.0f, 0.03f, 0.03f);
-  red_specular.specular = glm::vec3(0.5);
+  red_specular.diffuse = glm::vec3(0.9f, 0.1f, 0.1f);
+  red_specular.ambient = glm::vec3(0.1f, 0.03f, 0.03f);
+  red_specular.specular = glm::vec3(0.5f);
   red_specular.shininess = 10.0f;
 
   Material blue_dark;
-  blue_dark.diffuse = glm::vec3(0.7f, 0.7f, 1.0f);
-  blue_dark.ambient = glm::vec3(0.3f, 0.3f, 2.5f);
+  blue_dark.diffuse = glm::vec3(0.1f, 0.1f, 0.8f);
+  blue_dark.ambient = glm::vec3(0.01f, 0.01f, 0.9f);
   blue_dark.specular = glm::vec3(0.6f);
   blue_dark.shininess = 100.0f;
 
   Material green;
-  green.diffuse = glm::vec3(0.7f, 0.9f, 0.7f);
-  green.ambient = glm::vec3(0.2f, 3.0, 0.4f);
+  green.diffuse = glm::vec3(0.2f, 0.9f, 0.2f);
+  green.ambient = glm::vec3(0.01f, 0.3f, 0.01f);
   green.specular = glm::vec3(0.0f);
   green.shininess = 0.0f;
 
   /* Assignment 2: Yellow material for the highly specular cone*/
   Material yellow;
-  yellow.diffuse = glm::vec3(0.9f, 0.9f, 0.0f);
-  yellow.ambient = glm::vec3(0.03f, 0.003f, 0.0f);
-  yellow.specular = glm::vec3(10);
+  yellow.diffuse = glm::vec3(0.2f, 0.2f, 0.0f);
+  yellow.ambient = glm::vec3(0.003f, 0.003f, 0.0f);
+  yellow.specular = glm::vec3(1.0);
   yellow.shininess = 100.0f;
 
   /* Add spheres */
@@ -529,9 +532,9 @@ void sceneDefinition() {
   objects.push_back(new Sphere(1.0f, glm::vec3(1, -2, 8), blue_dark));
 
   /* Define lights */
-  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(20)));
-  lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(5)));
-  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(6)));
+  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(0.6)));
+  lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(0.2)));
+  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.1)));
 
   /* Assignment 2: Planes */
   // Points at extremities of the box (top right and back left)
@@ -576,7 +579,7 @@ void sceneDefinition() {
   /* Transformation matrices for the green cone */
   glm::mat4 translation_green_cone = glm::translate(glm::vec3(6, -3, 7));
   glm::mat4 rotation_green_cone = glm::rotate(
-      glm::mat4(1.0f), (float)glm::radians(67.5f), glm::vec3(0.0f, 0.0f, 1.0f));
+      glm::mat4(1.0f), (float)glm::radians(71.5f), glm::vec3(0.0f, 0.0f, 1.0f));
   glm::mat4 scale_green_cone = glm::scale(glm::vec3(1.0f, 3.0f, 1.0f));
   glm::mat4 greenConeTraMat =
       translation_green_cone * rotation_green_cone * scale_green_cone;
