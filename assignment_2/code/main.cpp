@@ -89,9 +89,6 @@ class Object {
   void setTransformation(glm::mat4 matrix) {
     transformationMatrix = matrix;
 
-    /* ----- Exercise 2 ---------
-    Set the two remaining matrices
-    */
     /* Assignment 2: set matrices */
     inverseTransformationMatrix = glm::inverse(transformationMatrix);
     normalMatrix = glm::transpose(inverseTransformationMatrix);
@@ -242,7 +239,36 @@ class Plane : public Object {
     }
   }
 };
+/* Assignment 3: Triangle class */
+class Triangle : public Object {
+  // Fields for the triangle
+  // TODO Bonus: Think about disabling intersect computation if hidden face ?
+ private:
+  // 3 vertices: A, B and C
+  glm::vec3 A;
+  glm::vec3 B;
+  glm::vec3 C;
 
+ public:
+  Hit intersect(Ray ray) {
+    Hit hit;
+    hit.hit = false;
+    hit.intersection = glm::vec3(0);
+    hit.distance = 0;
+    hit.normal = glm::vec3(0);
+    hit.object = this;
+
+    // Define support plane (normal is given by cross product, normalize as good
+    // practice
+    Plane *supportPlane =
+        new Plane(A, glm::normalize(glm::cross(B - C, A - C)));
+    // TODO: Check if it intersects with the support plane of the triangle
+    Hit planeIntersect = supportPlane->intersect()
+    // TODO: Check if the point is inside the triangle -> compute barycentric
+    // coordinate and check if belong to (0,1)
+    // TODO: Q: Check what happens if a lambda is 0 or 1
+  }
+};
 class Cone : public Object {
  private:
   Plane *plane;
@@ -255,13 +281,6 @@ class Cone : public Object {
   }
 
   Hit intersect(Ray ray) {
-    /*  ---- Exercise 2 -----
-     * Implement the ray-cone intersection. Before intersecting the ray with the
-     * cone, make sure that you transform the ray into the local coordinate
-     * system. Remember about normalizing all the directions after
-     * transformations.
-     */
-
     /* Assignment 2: Intersect function for cone and ray */
 
     // Radius of the cone's base
@@ -441,11 +460,6 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
     glm::vec3 specular =
         material.specular * glm::vec3(pow(RdotV, material.shininess));
 
-    /*  ---- Exercise 3-----
-
-     Include light attenuation due to the distance to the light source.
-
-    */
     /* Assignment 2: Distance attenuation*/
     float att_d = 1;
 
@@ -605,9 +619,6 @@ void sceneDefinition() {
 }
 
 glm::vec3 toneMapping(glm::vec3 intensity) {
-  /*  ---- Exercise 3-----
-   Implement a tonemapping strategy and gamma correction for a correct display.
-  */
   /* Assignment 2: Tonemapping with power function and gamma correction */
   // Alpha has no constraints
   float alpha = 2.5f;
@@ -665,11 +676,6 @@ int main(int argc, const char *argv[]) {
       image.setPixel(i, j,
                      glm::clamp(toneMapping(trace_ray(ray)), glm::vec3(0.0),
                                 glm::vec3(1.0)));
-      /*  ---- Exercise 3-----
-      After implementing the tonemapping function
-      use the following line
-
-      */
     }
 
   t = clock() - t;
