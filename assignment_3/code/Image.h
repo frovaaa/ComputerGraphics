@@ -12,6 +12,11 @@
 #ifndef Image_h
 #define Image_h
 
+#include <fstream>
+
+#include "glm/glm.hpp"
+#include "glm/gtx/transform.hpp"
+
 using namespace std;
 
 /**
