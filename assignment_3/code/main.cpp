@@ -695,8 +695,12 @@ void sceneDefinition() {
   glm::vec3 c = glm::vec3(2.0, 0.0, 0.0);
 
   glm::mat4 trianTrans = glm::translate(glm::vec3(1.0f, -1.0f, 5.0f));
+  glm::mat4 trianRot =
+      glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
+  glm::mat4 trianScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
+
   Triangle *testTr = new Triangle(a, b, c, blue_dark);
-  testTr->setTransformation(trianTrans);
+  testTr->setTransformation(trianTrans * trianRot * trianScale);
 
   objects.push_back(testTr);
 }
