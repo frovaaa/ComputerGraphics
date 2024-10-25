@@ -409,12 +409,30 @@ class Triangle : public Object {
     this->material = material;
   }
 
+  /* override the setTransformation method so that we can update
+   * the a, b, c verteces, the normal and recompute the plane
+   */
+  void setTransformation(glm::mat4 matrix) {
+    // Set the transformation matrices for the triangle
+    this->transformationMatrix = matrix;
+    this->inverseTransformationMatrix =
+        glm::inverse(this->transformationMatrix);
+    this->normalMatrix = glm::transpose(this->inverseTransformationMatrix);
+
+    // Transform all the verteces and re-compute the normal and the plane
+    this->a = glm::vec3(this->transformationMatrix * glm::vec4(this->a, 1.0f));
+    this->b = glm::vec3(this->transformationMatrix * glm::vec4(this->b, 1.0f));
+    this->c = glm::vec3(this->transformationMatrix * glm::vec4(this->c, 1.0f));
+    this->normal = glm::cross((this->b - this->a), (this->c - this->a));
+    this->plane = new Plane(this->a, this->normal);
+  }
+
   Hit intersect(Ray ray) {
     Hit hit;
     hit.hit = false;
     hit.intersection = glm::vec3(0);
     hit.distance = 0;
-    hit.normal = glm::vec3(0);
+    hit.normal = this->normal;
     hit.object = this;
 
     // Checking if the ray hits the plane
@@ -423,7 +441,7 @@ class Triangle : public Object {
     if (hitPlane.hit) {
       // Hit the plane, so now we check the barycentric coordinates
       hit.intersection = hitPlane.intersection;
-      hit.normal = hitPlane.normal;
+      // hit.normal = glm::normalize(hitPlane.normal);
       hit.distance = hitPlane.distance;
       hit.hit = hitPlane.hit;
 
@@ -442,8 +460,13 @@ class Triangle : public Object {
       float dot3 = glm::dot(this->normal, n3);
       float lambda3 = dot3 / glm::pow(glm::length(this->normal), 2);
 
+      // cout << "Lambda1: " << lambda1 << endl;
+      // cout << "Lambda2: " << lambda2 << endl;
+      // cout << "Lambda3: " << lambda3 << endl;
+
       if ((lambda1 >= 0 && lambda2 >= 0 && lambda3 >= 0) &&
           (lambda1 + lambda2 + lambda3) <= 1.0 + 1e-6) {
+        hit.normal = glm::normalize(hit.normal);
         return hit;
       } else {
         hit.hit = false;
@@ -619,18 +642,18 @@ void sceneDefinition() {
   glm::vec3 z_norm = glm::vec3(0, 0, 1);
 
   // Left wall
-  // objects.push_back(new Plane(back_left_p, x_norm, blue_dark));
+  objects.push_back(new Plane(back_left_p, x_norm, blue_dark));
   // Bottom wall
-  // objects.push_back(new Plane(back_left_p, y_norm, red_specular));
+  objects.push_back(new Plane(back_left_p, y_norm, red_specular));
   // Back wall
-  // objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
+  objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
 
   // Right wall
-  // objects.push_back(new Plane(top_right_p, x_norm, blue_dark));
+  objects.push_back(new Plane(top_right_p, x_norm, blue_dark));
   // Above/top wall
-  // objects.push_back(new Plane(top_right_p, y_norm, green));
+  objects.push_back(new Plane(top_right_p, y_norm, green));
   // Front wall
-  // objects.push_back(new Plane(top_right_p, z_norm, green));
+  objects.push_back(new Plane(top_right_p, z_norm, green));
 
   /* Assignment 2: Adding cones */
 
@@ -665,11 +688,14 @@ void sceneDefinition() {
   // objects.push_back(yellow_cone);
   // objects.push_back(green_cone);
 
-  glm::vec3 a = glm::vec3(-2.0, 3.0, 15.0);
-  glm::vec3 b = glm::vec3(2.0, 3.0, 5.0);
-  glm::vec3 c = glm::vec3(0.0, 6.0, 15.0);
+  glm::vec3 a = glm::vec3(-2.0, 0.0, 0.0);
+  glm::vec3 b = glm::vec3(0.0, 3.0, 0.0);
+  glm::vec3 c = glm::vec3(2.0, 0.0, 0.0);
 
+  glm::mat4 trianTrans = glm::translate(glm::vec3(1.0f, -1.0f, 5.0f));
   Triangle *testTr = new Triangle(a, b, c, red_specular);
+
+  testTr->setTransformation(trianTrans);
 
   objects.push_back(testTr);
 }
