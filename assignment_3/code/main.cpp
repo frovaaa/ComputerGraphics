@@ -391,6 +391,7 @@ class Cone : public Object {
   }
 };
 
+// Assignment 3: Triangle class
 class Triangle : public Object {
  private:
   Plane *plane;
@@ -400,13 +401,16 @@ class Triangle : public Object {
   glm::vec3 normal;
 
  public:
-  Triangle(glm::vec3 a, glm::vec3 b, glm::vec3 c, Material material) {
-    this->a = a;
-    this->b = b;
-    this->c = c;
-    this->normal = glm::cross((this->b - this->a), (this->c - this->a));
-    this->plane = new Plane(this->a, this->normal);
+  Triangle(glm::vec3 a, glm::vec3 b, glm::vec3 c, Material material)
+      : a(a), b(b), c(c) {
+    this->normal = glm::cross((b - a), (c - a));
+    this->plane = new Plane(a, this->normal);
     this->material = material;
+  }
+
+  Triangle(glm::vec3 a, glm::vec3 b, glm::vec3 c) : a(a), b(b), c(c) {
+    this->normal = glm::cross((b - a), (c - a));
+    this->plane = new Plane(a, this->normal);
   }
 
   /* override the setTransformation method so that we can update
@@ -439,9 +443,10 @@ class Triangle : public Object {
     Hit hitPlane = this->plane->intersect(ray);
 
     if (hitPlane.hit) {
-      // Hit the plane, so now we check the barycentric coordinates
+      /* We hit the plane, so now we check the barycentric coordinates
+       * To see if we are inside the triangle
+       */
       hit.intersection = hitPlane.intersection;
-      // hit.normal = glm::normalize(hitPlane.normal);
       hit.distance = hitPlane.distance;
       hit.hit = hitPlane.hit;
 
@@ -459,10 +464,6 @@ class Triangle : public Object {
                                 (this->b - hit.intersection));
       float dot3 = glm::dot(this->normal, n3);
       float lambda3 = dot3 / glm::pow(glm::length(this->normal), 2);
-
-      // cout << "Lambda1: " << lambda1 << endl;
-      // cout << "Lambda2: " << lambda2 << endl;
-      // cout << "Lambda3: " << lambda3 << endl;
 
       if ((lambda1 >= 0 && lambda2 >= 0 && lambda3 >= 0) &&
           (lambda1 + lambda2 + lambda3) <= 1.0 + 1e-6) {
@@ -688,13 +689,13 @@ void sceneDefinition() {
   // objects.push_back(yellow_cone);
   // objects.push_back(green_cone);
 
-  glm::vec3 a = glm::vec3(-2.0, 0.0, 0.0);
-  glm::vec3 b = glm::vec3(0.0, 3.0, 0.0);
+  // Assignment 3: Triangles
+  glm::vec3 a = glm::vec3(-2.0, 0.0, 2.0);
+  glm::vec3 b = glm::vec3(0.5, 2.0, 1.0);
   glm::vec3 c = glm::vec3(2.0, 0.0, 0.0);
 
   glm::mat4 trianTrans = glm::translate(glm::vec3(1.0f, -1.0f, 5.0f));
-  Triangle *testTr = new Triangle(a, b, c, red_specular);
-
+  Triangle *testTr = new Triangle(a, b, c, blue_dark);
   testTr->setTransformation(trianTrans);
 
   objects.push_back(testTr);
