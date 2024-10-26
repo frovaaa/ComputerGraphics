@@ -10,6 +10,7 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <vector>
 
 #include "Image.h"
@@ -97,6 +98,8 @@ class Object {
     normalMatrix = glm::transpose(inverseTransformationMatrix);
   }
 };
+
+vector<Object *> objects;  ///< A list of all objects in the scene
 
 /**
  Implementation of the class Object for sphere shape.
@@ -393,14 +396,20 @@ class Cone : public Object {
 
 // Assignment 3: Triangle class
 class Triangle : public Object {
- private:
+  //  private:
+  //   Plane *plane;
+  //   glm::vec3 a;  // p1
+  //   glm::vec3 b;  // p2
+  //   glm::vec3 c;  // p3
+  //   glm::vec3 normal;
+
+ public:
   Plane *plane;
   glm::vec3 a;  // p1
   glm::vec3 b;  // p2
   glm::vec3 c;  // p3
   glm::vec3 normal;
 
- public:
   Triangle(glm::vec3 a, glm::vec3 b, glm::vec3 c, Material material)
       : a(a), b(b), c(c) {
     this->normal = glm::cross((b - a), (c - a));
@@ -477,6 +486,134 @@ class Triangle : public Object {
   }
 };
 
+class Mesh : public Object {
+ private:
+  // List of triangles
+  std::vector<Triangle *> triangles;
+  // File path to the obj file
+  std::string objPath;
+
+ public:
+  Mesh(std::string objPath, Material material) : objPath(objPath) {
+    this->material = material;
+    this->loadObj();
+  }
+
+  Mesh(std::string objPath) : objPath(objPath) { this->loadObj(); }
+
+  Mesh(std::string objPath, glm::mat4 transformationMatrix, Material material)
+      : objPath(objPath) {
+    this->material = material;
+    this->transformationMatrix = transformationMatrix;
+    this->loadObj();
+  }
+
+  Mesh(std::string objPath, glm::mat4 transformationMatrix) : objPath(objPath) {
+    this->transformationMatrix = transformationMatrix;
+    this->loadObj();
+  }
+
+  vector<Triangle *> getTriangles() { return this->triangles; }
+
+  /*
+    Function to load the obj file of the and create the triangles
+  */
+  void loadObj() {
+    std::ifstream file(objPath);
+    if (!file.is_open()) {
+      std::cerr << "Error: Could not open file " << objPath << std::endl;
+      return;
+    }
+
+    std::vector<glm::vec3> vertices;
+    std::vector<glm::vec3> normals;
+    std::vector<glm::vec3> faces;
+
+    std::string line;
+    // Read the file line by line
+    while (std::getline(file, line)) {
+      // Craete a string stream from the line
+      std::stringstream ss(line);
+      std::string type;
+      // Read the first word of the line
+      ss >> type;
+
+      // Check the type of the line
+      // Could be a vertex, a normal, face or the smooth shading option
+      if (type == "v") {
+        glm::vec3 vertex;
+        ss >> vertex.x >> vertex.y >> vertex.z;
+        vertices.push_back(vertex);
+      } else if (type == "vn") {
+        glm::vec3 normal;
+        ss >> normal.x >> normal.y >> normal.z;
+        normals.push_back(normal);
+      } else if (type == "f") {
+        /*
+          Face composed by v/vt/vn
+          (vertex index, texture, normal index)
+          vt could be empty (like in our case)
+          Read the three vertices of the face
+          and store them in the faces vector
+          The index of the vertices is 1-based so we need to subtract 1
+        */
+        glm::vec3 face;
+        std::string vertex;
+        for (int i = 0; i < 3; i++) {
+          ss >> vertex;
+          std::stringstream vss(vertex);
+          std::string index;
+          std::getline(vss, index, '/');
+          face[i] = std::stoi(index);
+        }
+        faces.push_back(face);
+      }
+    }
+
+    // Create the triangles from the vertices and faces
+    for (int i = 0; i < faces.size(); i++) {
+      glm::vec3 a = vertices[faces[i].x - 1];
+      glm::vec3 b = vertices[faces[i].y - 1];
+      glm::vec3 c = vertices[faces[i].z - 1];
+
+      Triangle *triangle = new Triangle(a, b, c, this->material);
+      triangle->setTransformation(this->transformationMatrix);
+
+      this->triangles.push_back(triangle);
+    }
+
+    // In the end we close the file
+    file.close();
+
+    std::cout << "Number of triangles: " << this->triangles.size() << std::endl;
+    std::cout << "Number of vertices: " << vertices.size() << std::endl;
+  }
+
+  Hit intersect(Ray ray) {
+    Hit hit;
+    hit.hit = false;
+    hit.intersection = glm::vec3(0);
+    hit.distance = 0;
+    hit.normal = glm::vec3(0);
+    hit.object = this;
+
+    for (int i = 0; i < this->triangles.size(); i++) {
+      Hit triangleHit = this->triangles[i]->intersect(ray);
+      if (triangleHit.hit &&
+          (!hit.hit || triangleHit.distance < hit.distance)) {
+        hit = triangleHit;
+      }
+    }
+    return hit;
+  }
+
+  void addMeshToScene() {
+    for (int i = 0; i < this->triangles.size(); i++) {
+      objects.push_back(this->triangles[i]);
+    }
+  }
+};
+
 /**
  Light class
  */
@@ -492,7 +629,6 @@ class Light {
 
 vector<Light *> lights;  ///< A list of lights in the scene
 glm::vec3 ambient_light(0.02, 0.02, 0.02);
-vector<Object *> objects;  ///< A list of all objects in the scene
 
 /** Function for computing color of an object according to the Phong Model
  @param point A point belonging to the object for which the color is computed
@@ -647,7 +783,7 @@ void sceneDefinition() {
   // Bottom wall
   objects.push_back(new Plane(back_left_p, y_norm, red_specular));
   // Back wall
-  objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
+  // objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
 
   // Right wall
   objects.push_back(new Plane(top_right_p, x_norm, blue_dark));
@@ -699,10 +835,34 @@ void sceneDefinition() {
       glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 trianScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
 
-  Triangle *testTr = new Triangle(a, b, c, blue_dark);
-  testTr->setTransformation(trianTrans * trianRot * trianScale);
+  glm::mat4 armadilloTrans = glm::translate(glm::vec3(-10.0f, -3.0f, 10.0f));
+  glm::mat4 armadilloRot =
+      glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
+  glm::mat4 armadilloScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
+  glm::mat4 armadilloTraMat = armadilloTrans * armadilloRot * armadilloScale;
+  Mesh *armadillo = new Mesh("meshes/armadillo.obj", armadilloTraMat);
+  armadillo->addMeshToScene();
+  objects.push_back(armadillo);
 
-  objects.push_back(testTr);
+  glm::mat4 bunnyTrans = glm::translate(glm::vec3(0.0f, -3.0f, 5.0f));
+  glm::mat4 bunnyRot =
+      glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
+  glm::mat4 bunnyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
+  glm::mat4 bunnyTraMat = bunnyTrans * bunnyRot * bunnyScale;
+  Mesh *bunny = new Mesh("meshes/bunny.obj", bunnyTraMat);
+  bunny->addMeshToScene();
+  objects.push_back(bunny);
+
+  glm::mat4 lucyTrans = glm::translate(glm::vec3(10.0f, -3.0f, 10.0f));
+  glm::mat4 lucyRot =
+      glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
+  glm::mat4 lucyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
+  glm::mat4 lucyTraMat = lucyTrans * lucyRot * lucyScale;
+  Mesh *lucy = new Mesh("meshes/lucy.obj", lucyTraMat);
+  lucy->addMeshToScene();
+  objects.push_back(lucy);
+
+  cout << "Number of objects: " << objects.size() << endl;
 }
 
 glm::vec3 toneMapping(glm::vec3 intensity) {
@@ -756,7 +916,7 @@ int main(int argc, const char *argv[]) {
       float dz = 1;
 
       // Definition of the ray
-      glm::vec3 origin(0, 0, 0);
+      glm::vec3 origin(0, 0, -5);
       glm::vec3 direction(dx, dy, dz);
       direction = glm::normalize(direction);
 
@@ -766,11 +926,12 @@ int main(int argc, const char *argv[]) {
       image.setPixel(i, j,
                      glm::clamp(toneMapping(trace_ray(ray)), glm::vec3(0.0),
                                 glm::vec3(1.0)));
-      /*  ---- Exercise 3-----
-      After implementing the tonemapping function
-      use the following line
 
-      */
+      // Print the progress of the rendering
+      if (j % 10000 == 0) {
+        float percentage = (float)(i * height + j) / (width * height) * 100;
+        cout << "Progress: " << percentage << "%" << endl;
+      }
     }
 
   t = clock() - t;
