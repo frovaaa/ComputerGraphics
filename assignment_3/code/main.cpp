@@ -902,9 +902,18 @@ void sceneDefinition() {
       glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 lucyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 lucyTraMat = lucyTrans * lucyRot * lucyScale;
-  Mesh *lucy = new Mesh("meshes/lucy_with_normals.obj", lucyTraMat);
-  lucy->addMeshToScene();
-  objects.push_back(lucy);
+  // Mesh *lucy = new Mesh("meshes/lucy_with_normals.obj", lucyTraMat);
+  // lucy->addMeshToScene();
+  // objects.push_back(lucy);
+
+  glm::mat4 yunaTrans = glm::translate(glm::vec3(0.0f, 0.0f, 5.0f));
+  glm::mat4 yunaRot =
+      glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
+  glm::mat4 yunaScale = glm::scale(glm::vec3(0.5f, 0.5f, 0.5f));
+  glm::mat4 yunaTraMat = yunaTrans * yunaRot * yunaScale;
+  Mesh *yuna = new Mesh("meshes/yuna_simplified_smooth.obj", yunaTraMat);
+  yuna->addMeshToScene();
+  objects.push_back(yuna);
 
   cout << "Number of objects: " << objects.size() << endl;
 }
