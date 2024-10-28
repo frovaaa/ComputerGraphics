@@ -492,12 +492,13 @@ class Triangle : public Object {
 
       if ((lambda1 >= 0 && lambda2 >= 0 && lambda3 >= 0) &&
           (lambda1 + lambda2 + lambda3) <= 1.0 + 1e-6) {
-        // If the smooth normals are present, we interpolate them
-        hit.normal = this->smoothNormals.size() > 0
-                         ? glm::normalize(lambda1 * this->smoothNormals[0] +
-                                          lambda2 * this->smoothNormals[1] +
-                                          lambda3 * this->smoothNormals[2])
-                         : this->normal;
+        if (this->smoothNormals.size() > 0) {
+          hit.normal = glm::normalize(lambda1 * this->smoothNormals[0] +
+                                      lambda2 * this->smoothNormals[1] +
+                                      lambda3 * this->smoothNormals[2]);
+        } else {
+          hit.normal = glm::normalize(this->normal);
+        }
         return hit;
       } else {
         hit.hit = false;
@@ -560,14 +561,13 @@ class Mesh : public Object {
     std::string line;
     // Read the file line by line
     while (std::getline(file, line)) {
-      // Craete a string stream from the line
+      // Create a string stream from the line
       std::stringstream ss(line);
       std::string type;
       // Read the first word of the line
       ss >> type;
 
       // Check the type of the line
-      // Could be a vertex, a normal, face or the smooth shading option
       if (type == "v") {
         glm::vec3 vertex;
         ss >> vertex.x >> vertex.y >> vertex.z;
@@ -577,29 +577,27 @@ class Mesh : public Object {
         ss >> normal.x >> normal.y >> normal.z;
         normals.push_back(normal);
       } else if (type == "f") {
-        /*
-          Face composed by v/vt/vn
-          (vertex index, texture, normal index)
-          vt could be empty (like in our case)
-          Read the three vertices of the face
-          and store them in the faces vector
-          The index of the vertices is 1-based so we need to subtract 1
-        */
         Face face;
         std::string vertex;
         for (int i = 0; i < 3; i++) {
-          if (!smoothShading) {
-            ss >> vertex;
-            face.vertices.push_back(std::stoi(vertex) - 1);
-          } else {
-            ss >> vertex;
-            std::stringstream vss(vertex);
-            std::string index;
-            std::getline(vss, index, '/');  // vertex index
-            face.vertices.push_back(std::stoi(index) - 1);
-            std::getline(vss, index, '/');  // texture index (skip)
-            std::getline(vss, index, '/');  // normal index
-            if (index != "") {
+          ss >> vertex;
+          std::stringstream vss(vertex);
+          std::string index;
+
+          // Parse vertex index
+          // We need to remove 1 as the obj file format starts indexing from 1
+          std::getline(vss, index, '/');
+          face.vertices.push_back(std::stoi(index) - 1);
+
+          // Skip texture index
+          if (vss.peek() == '/') vss.get();
+          std::getline(vss, index, '/');
+
+          // Parse normal index if present
+          // We need to remove 1 as the obj file format starts indexing from 1
+          if (vss.peek() == '/') vss.get();
+          if (std::getline(vss, index, '/')) {
+            if (!index.empty()) {
               face.normals.push_back(std::stoi(index) - 1);
             }
           }
@@ -609,29 +607,21 @@ class Mesh : public Object {
         // Smooth shading option
         std::string option;
         ss >> option;
-        if (option == "1") {
-          this->smoothShading = true;
-        } else {
-          this->smoothShading = false;
-        }
+        this->smoothShading = (option != "off");
       }
     }
 
     // Create the triangles from the vertices and faces
     for (int i = 0; i < faces.size(); i++) {
-      glm::vec3 a = vertices[faces[i].vertices[0] - 1];
-      glm::vec3 b = vertices[faces[i].vertices[1] - 1];
-      glm::vec3 c = vertices[faces[i].vertices[2] - 1];
+      glm::vec3 a = vertices[faces[i].vertices[0]];
+      glm::vec3 b = vertices[faces[i].vertices[1]];
+      glm::vec3 c = vertices[faces[i].vertices[2]];
 
-      // If smooth shading is enabled, we need to pass the normals to the
-      // triangle
       Triangle *triangle;
-      std::vector<glm::vec3> smoothNormals;
-      if (smoothShading) {
+      if (smoothShading && faces[i].normals.size() == 3) {
+        std::vector<glm::vec3> smoothNormals;
         for (int j = 0; j < 3; j++) {
-          if (faces[i].normals.size() > 0) {
-            smoothNormals.push_back(normals[faces[i].normals[j] - 1]);
-          }
+          smoothNormals.push_back(normals[faces[i].normals[j]]);
         }
         triangle = new Triangle(a, b, c, this->material, smoothNormals);
       } else {
@@ -641,7 +631,6 @@ class Mesh : public Object {
       this->triangles.push_back(triangle);
     }
 
-    // In the end we close the file
     file.close();
 
     std::cout << "Number of triangles: " << this->triangles.size() << std::endl;
@@ -900,36 +889,36 @@ void sceneDefinition() {
       glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 armadilloScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 armadilloTraMat = armadilloTrans * armadilloRot * armadilloScale;
-  Mesh *armadillo = new Mesh("meshes/armadillo.obj", armadilloTraMat);
-  armadillo->addMeshToScene();
-  objects.push_back(armadillo);
+  // Mesh *armadillo = new Mesh("meshes/armadillo.obj", armadilloTraMat);
+  // armadillo->addMeshToScene();
+  // objects.push_back(armadillo);
 
   glm::mat4 bunnyTrans = glm::translate(glm::vec3(0.0f, -3.0f, 8.0f));
-  glm::mat4 bunnyRot =
-      glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
+  glm::mat4 bunnyRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
+                                   glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 bunnyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 bunnyTraMat = bunnyTrans * bunnyRot * bunnyScale;
-  Mesh *bunny = new Mesh("meshes/bunny_with_normals.obj", bunnyTraMat);
-  bunny->addMeshToScene();
-  objects.push_back(bunny);
+  // Mesh *bunny = new Mesh("meshes/bunny_with_normals.obj", bunnyTraMat);
+  // bunny->addMeshToScene();
+  // objects.push_back(bunny);
 
   glm::mat4 lucyTrans = glm::translate(glm::vec3(4.0f, -3.0f, 10.0f));
-  glm::mat4 lucyRot =
-      glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
+  glm::mat4 lucyRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
+                                  glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 lucyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 lucyTraMat = lucyTrans * lucyRot * lucyScale;
-  Mesh *lucy = new Mesh("meshes/lucy_with_normals.obj", lucyTraMat);
-  lucy->addMeshToScene();
-  objects.push_back(lucy);
+  // Mesh *lucy = new Mesh("meshes/lucy_with_normals.obj", lucyTraMat);
+  // lucy->addMeshToScene();
+  // objects.push_back(lucy);
 
-  glm::mat4 yunaTrans = glm::translate(glm::vec3(0.0f, 0.0f, 5.0f));
-  glm::mat4 yunaRot =
-      glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
-  glm::mat4 yunaScale = glm::scale(glm::vec3(0.5f, 0.5f, 0.5f));
+  glm::mat4 yunaTrans = glm::translate(glm::vec3(0.0f, 0.0f, 12.0f));
+  glm::mat4 yunaRot = glm::rotate(glm::mat4(1.0f), glm::radians(-15.0f),
+                                  glm::vec3(0.0f, 1.0f, 0.0f));
+  glm::mat4 yunaScale = glm::scale(glm::vec3(0.6f, 0.6f, 0.6f));
   glm::mat4 yunaTraMat = yunaTrans * yunaRot * yunaScale;
-  // Mesh *yuna = new Mesh("meshes/yuna_simplified_smooth.obj", yunaTraMat);
-  // yuna->addMeshToScene();
-  // objects.push_back(yuna);
+  Mesh *yuna = new Mesh("meshes/yuna_simplified_smooth.obj", yunaTraMat);
+  yuna->addMeshToScene();
+  objects.push_back(yuna);
 
   cout << "Number of objects: " << objects.size() << endl;
 }
@@ -962,9 +951,9 @@ glm::vec3 toneMapping(glm::vec3 intensity) {
 int main(int argc, const char *argv[]) {
   clock_t t = clock();  // variable for keeping the time of the rendering
 
-  int width = 1024;  // width of the image
-  int height = 768;  // height of the image
-  float fov = 90;    // field of view
+  int width = 1024 / 8;  // width of the image
+  int height = 768 / 8;  // height of the image
+  float fov = 90;        // field of view
 
   sceneDefinition();  // Let's define a scene
 
