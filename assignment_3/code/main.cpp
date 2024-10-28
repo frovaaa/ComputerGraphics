@@ -519,6 +519,8 @@ class Mesh : public Object {
   // File path to the obj file
   std::string objPath;
 
+  bool smoothShading = false;
+
  public:
   Mesh(std::string objPath, Material material) : objPath(objPath) {
     this->material = material;
@@ -586,18 +588,32 @@ class Mesh : public Object {
         Face face;
         std::string vertex;
         for (int i = 0; i < 3; i++) {
-          ss >> vertex;
-          std::stringstream vss(vertex);
-          std::string index;
-          std::getline(vss, index, '/');  // vertex index
-          face.vertices.push_back(std::stoi(index));
-          std::getline(vss, index, '/');  // texture index (skip)
-          std::getline(vss, index, '/');  // normal index
-          if (index != "") {
-            face.normals.push_back(std::stoi(index));
+          if (!smoothShading) {
+            ss >> vertex;
+            face.vertices.push_back(std::stoi(vertex) - 1);
+          } else {
+            ss >> vertex;
+            std::stringstream vss(vertex);
+            std::string index;
+            std::getline(vss, index, '/');  // vertex index
+            face.vertices.push_back(std::stoi(index) - 1);
+            std::getline(vss, index, '/');  // texture index (skip)
+            std::getline(vss, index, '/');  // normal index
+            if (index != "") {
+              face.normals.push_back(std::stoi(index) - 1);
+            }
           }
         }
         faces.push_back(face);
+      } else if (type == "s") {
+        // Smooth shading option
+        std::string option;
+        ss >> option;
+        if (option == "1") {
+          this->smoothShading = true;
+        } else {
+          this->smoothShading = false;
+        }
       }
     }
 
@@ -607,11 +623,11 @@ class Mesh : public Object {
       glm::vec3 b = vertices[faces[i].vertices[1] - 1];
       glm::vec3 c = vertices[faces[i].vertices[2] - 1];
 
-      // If the normals are not empty, we use the smooth shading
-      // and we pass the normals to the triangle
+      // If smooth shading is enabled, we need to pass the normals to the
+      // triangle
       Triangle *triangle;
       std::vector<glm::vec3> smoothNormals;
-      if (faces[i].normals.size() > 0) {
+      if (smoothShading) {
         for (int j = 0; j < 3; j++) {
           if (faces[i].normals.size() > 0) {
             smoothNormals.push_back(normals[faces[i].normals[j] - 1]);
@@ -879,41 +895,41 @@ void sceneDefinition() {
       glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 trianScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
 
-  glm::mat4 armadilloTrans = glm::translate(glm::vec3(-10.0f, -3.0f, 10.0f));
+  glm::mat4 armadilloTrans = glm::translate(glm::vec3(-4.0f, -3.0f, 10.0f));
   glm::mat4 armadilloRot =
       glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 armadilloScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 armadilloTraMat = armadilloTrans * armadilloRot * armadilloScale;
-  // Mesh *armadillo = new Mesh("meshes/armadillo_with_normals.obj",
-  // armadilloTraMat); armadillo->addMeshToScene();
-  // objects.push_back(armadillo);
+  Mesh *armadillo = new Mesh("meshes/armadillo.obj", armadilloTraMat);
+  armadillo->addMeshToScene();
+  objects.push_back(armadillo);
 
-  glm::mat4 bunnyTrans = glm::translate(glm::vec3(0.0f, -3.0f, 5.0f));
+  glm::mat4 bunnyTrans = glm::translate(glm::vec3(0.0f, -3.0f, 8.0f));
   glm::mat4 bunnyRot =
       glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 bunnyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 bunnyTraMat = bunnyTrans * bunnyRot * bunnyScale;
-  // Mesh *bunny = new Mesh("meshes/bunny_with_normals.obj", bunnyTraMat);
-  // bunny->addMeshToScene();
-  // objects.push_back(bunny);
+  Mesh *bunny = new Mesh("meshes/bunny_with_normals.obj", bunnyTraMat);
+  bunny->addMeshToScene();
+  objects.push_back(bunny);
 
-  glm::mat4 lucyTrans = glm::translate(glm::vec3(10.0f, -3.0f, 10.0f));
+  glm::mat4 lucyTrans = glm::translate(glm::vec3(4.0f, -3.0f, 10.0f));
   glm::mat4 lucyRot =
       glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 lucyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 lucyTraMat = lucyTrans * lucyRot * lucyScale;
-  // Mesh *lucy = new Mesh("meshes/lucy_with_normals.obj", lucyTraMat);
-  // lucy->addMeshToScene();
-  // objects.push_back(lucy);
+  Mesh *lucy = new Mesh("meshes/lucy_with_normals.obj", lucyTraMat);
+  lucy->addMeshToScene();
+  objects.push_back(lucy);
 
   glm::mat4 yunaTrans = glm::translate(glm::vec3(0.0f, 0.0f, 5.0f));
   glm::mat4 yunaRot =
       glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 yunaScale = glm::scale(glm::vec3(0.5f, 0.5f, 0.5f));
   glm::mat4 yunaTraMat = yunaTrans * yunaRot * yunaScale;
-  Mesh *yuna = new Mesh("meshes/yuna_simplified_smooth.obj", yunaTraMat);
-  yuna->addMeshToScene();
-  objects.push_back(yuna);
+  // Mesh *yuna = new Mesh("meshes/yuna_simplified_smooth.obj", yunaTraMat);
+  // yuna->addMeshToScene();
+  // objects.push_back(yuna);
 
   cout << "Number of objects: " << objects.size() << endl;
 }
