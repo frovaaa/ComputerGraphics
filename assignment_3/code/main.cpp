@@ -584,19 +584,28 @@ class Mesh : public Object {
           Read the three vertices of the face
           and store them in the faces vector
           The index of the vertices is 1-based so we need to subtract 1
+
+          The face line could also be just f v v v
+          So we need to check if the line is in the first format
         */
-        //  But the face line could also be just f v v v
-        //  So we need to check if the line is in the first format
         Face face;
         std::string vertex;
+        // Read space separated vertices
         while (ss >> vertex) {
+          // Creates a string stream from the vertex string
           std::stringstream vss(vertex);
           std::string index;
+          // Reads the vertex index before the first '/'
+          // If there is no '/' it means that the line is in the second format
+          // So we just read the entire vertex
           std::getline(vss, index, '/');
           face.vertices.push_back(std::stoi(index) - 1);
           // Check if the line is in the first format
+          // We do this by checking if the next character is a '/'
           if (vss.peek() == '/') {
+            // If yes, we ignore the first '/' as we ignore the texture index
             vss.ignore();
+            // Then, we read the normal index and add it to the list
             std::getline(vss, index, '/');
             face.normals.push_back(std::stoi(index) - 1);
           }
