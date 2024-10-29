@@ -897,16 +897,16 @@ void sceneDefinition() {
       glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 armadilloScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 armadilloTraMat = armadilloTrans * armadilloRot * armadilloScale;
-  // Mesh *armadillo = new Mesh("meshes/armadillo.obj", armadilloTraMat);
-  // armadillo->addMeshToScene();
-  // objects.push_back(armadillo);
+  Mesh *armadillo = new Mesh("meshes/armadillo.obj", armadilloTraMat);
+  armadillo->addMeshToScene();
+  objects.push_back(armadillo);
 
   glm::mat4 bunnyTrans = glm::translate(glm::vec3(0.0f, -3.0f, 8.0f));
   glm::mat4 bunnyRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
                                    glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 bunnyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 bunnyTraMat = bunnyTrans * bunnyRot * bunnyScale;
-  Mesh *bunny = new Mesh("meshes/bunny.obj", bunnyTraMat);
+  Mesh *bunny = new Mesh("meshes/bunny_with_normals.obj", bunnyTraMat);
   bunny->addMeshToScene();
   objects.push_back(bunny);
 
@@ -915,18 +915,18 @@ void sceneDefinition() {
                                   glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 lucyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 lucyTraMat = lucyTrans * lucyRot * lucyScale;
-  // Mesh *lucy = new Mesh("meshes/lucy_with_normals.obj", lucyTraMat);
-  // lucy->addMeshToScene();
-  // objects.push_back(lucy);
+  Mesh *lucy = new Mesh("meshes/lucy_with_normals.obj", lucyTraMat);
+  lucy->addMeshToScene();
+  objects.push_back(lucy);
 
   glm::mat4 yunaTrans = glm::translate(glm::vec3(0.0f, 0.0f, 12.0f));
   glm::mat4 yunaRot = glm::rotate(glm::mat4(1.0f), glm::radians(-15.0f),
                                   glm::vec3(0.0f, 1.0f, 0.0f));
   glm::mat4 yunaScale = glm::scale(glm::vec3(0.6f, 0.6f, 0.6f));
   glm::mat4 yunaTraMat = yunaTrans * yunaRot * yunaScale;
-  // Mesh *yuna = new Mesh("meshes/yuna_simplified_smooth.obj", yunaTraMat);
-  // yuna->addMeshToScene();
-  // objects.push_back(yuna);
+  Mesh *yuna = new Mesh("meshes/yuna_simplified_smooth.obj", yunaTraMat);
+  yuna->addMeshToScene();
+  objects.push_back(yuna);
 
   cout << "Number of objects: " << objects.size() << endl;
 }
@@ -959,9 +959,9 @@ glm::vec3 toneMapping(glm::vec3 intensity) {
 int main(int argc, const char *argv[]) {
   clock_t t = clock();  // variable for keeping the time of the rendering
 
-  int width = 1024 / 6;  // width of the image
-  int height = 768 / 6;  // height of the image
-  float fov = 90;        // field of view
+  int width = 1024;  // width of the image
+  int height = 768;  // height of the image
+  float fov = 90;    // field of view
 
   sceneDefinition();  // Let's define a scene
 
