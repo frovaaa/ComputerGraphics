@@ -577,29 +577,28 @@ class Mesh : public Object {
         ss >> normal.x >> normal.y >> normal.z;
         normals.push_back(normal);
       } else if (type == "f") {
+        /*
+          Face composed by v/vt/vn
+          (vertex index, texture, normal index)
+          vt could be empty (like in our case)
+          Read the three vertices of the face
+          and store them in the faces vector
+          The index of the vertices is 1-based so we need to subtract 1
+        */
+        //  But the face line could also be just f v v v
+        //  So we need to check if the line is in the first format
         Face face;
         std::string vertex;
-        for (int i = 0; i < 3; i++) {
-          ss >> vertex;
+        while (ss >> vertex) {
           std::stringstream vss(vertex);
           std::string index;
-
-          // Parse vertex index
-          // We need to remove 1 as the obj file format starts indexing from 1
           std::getline(vss, index, '/');
           face.vertices.push_back(std::stoi(index) - 1);
-
-          // Skip texture index
-          if (vss.peek() == '/') vss.get();
-          std::getline(vss, index, '/');
-
-          // Parse normal index if present
-          // We need to remove 1 as the obj file format starts indexing from 1
-          if (vss.peek() == '/') vss.get();
-          if (std::getline(vss, index, '/')) {
-            if (!index.empty()) {
-              face.normals.push_back(std::stoi(index) - 1);
-            }
+          // Check if the line is in the first format
+          if (vss.peek() == '/') {
+            vss.ignore();
+            std::getline(vss, index, '/');
+            face.normals.push_back(std::stoi(index) - 1);
           }
         }
         faces.push_back(face);
@@ -607,7 +606,7 @@ class Mesh : public Object {
         // Smooth shading option
         std::string option;
         ss >> option;
-        this->smoothShading = (option != "off");
+        this->smoothShading = (option == "1");
       }
     }
 
@@ -898,9 +897,9 @@ void sceneDefinition() {
                                    glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 bunnyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 bunnyTraMat = bunnyTrans * bunnyRot * bunnyScale;
-  // Mesh *bunny = new Mesh("meshes/bunny_with_normals.obj", bunnyTraMat);
-  // bunny->addMeshToScene();
-  // objects.push_back(bunny);
+  Mesh *bunny = new Mesh("meshes/bunny.obj", bunnyTraMat);
+  bunny->addMeshToScene();
+  objects.push_back(bunny);
 
   glm::mat4 lucyTrans = glm::translate(glm::vec3(4.0f, -3.0f, 10.0f));
   glm::mat4 lucyRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
@@ -916,9 +915,9 @@ void sceneDefinition() {
                                   glm::vec3(0.0f, 1.0f, 0.0f));
   glm::mat4 yunaScale = glm::scale(glm::vec3(0.6f, 0.6f, 0.6f));
   glm::mat4 yunaTraMat = yunaTrans * yunaRot * yunaScale;
-  Mesh *yuna = new Mesh("meshes/yuna_simplified_smooth.obj", yunaTraMat);
-  yuna->addMeshToScene();
-  objects.push_back(yuna);
+  // Mesh *yuna = new Mesh("meshes/yuna_simplified_smooth.obj", yunaTraMat);
+  // yuna->addMeshToScene();
+  // objects.push_back(yuna);
 
   cout << "Number of objects: " << objects.size() << endl;
 }
@@ -951,8 +950,8 @@ glm::vec3 toneMapping(glm::vec3 intensity) {
 int main(int argc, const char *argv[]) {
   clock_t t = clock();  // variable for keeping the time of the rendering
 
-  int width = 1024 / 8;  // width of the image
-  int height = 768 / 8;  // height of the image
+  int width = 1024 / 6;  // width of the image
+  int height = 768 / 6;  // height of the image
   float fov = 90;        // field of view
 
   sceneDefinition();  // Let's define a scene
