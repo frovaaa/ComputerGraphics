@@ -820,13 +820,10 @@ glm::vec3 trace_ray(Ray ray, int current_depth) {
     glm::vec3 reflected_color = closest_hit.object->material.reflection *
                                 trace_ray(reflected_ray, ++current_depth);
 
-    if (closest_hit.object->material.reflection > 0.0f) {
-      color = reflected_color;
-    } else {
-      color = PhongModel(closest_hit.intersection, closest_hit.normal,
-                         glm::normalize(-ray.direction),
-                         closest_hit.object->getMaterial());
-    }
+    color = PhongModel(closest_hit.intersection, closest_hit.normal,
+                       glm::normalize(-ray.direction),
+                       closest_hit.object->getMaterial()) +
+            reflected_color;
   } else {
     color = glm::vec3(0.0, 0.0, 0.0);
   }
@@ -856,12 +853,12 @@ void sceneDefinition() {
   green.shininess = 0.0f;
   /* Assignment 4: mirror material */
 
-  Material mirror;
-  mirror.diffuse = glm::vec3(0.2f, 0.9f, 0.2f);
-  mirror.ambient = glm::vec3(0.01f, 0.3f, 0.01f);
-  mirror.specular = glm::vec3(0.0f);
-  mirror.shininess = 0.5f;
-  mirror.reflection = 1.0f;
+  Material mirror_green;
+  mirror_green.diffuse = glm::vec3(0.02f, 0.09f, 0.02f);
+  mirror_green.ambient = glm::vec3(0.01f, 0.3f, 0.01f);
+  mirror_green.specular = glm::vec3(0.0f);
+  mirror_green.shininess = 0.5f;
+  mirror_green.reflection = 1.0f;
 
   /* Assignment 2: Yellow material for the highly specular cone*/
   Material yellow;
@@ -871,10 +868,10 @@ void sceneDefinition() {
   yellow.shininess = 100.0f;
 
   /* Add spheres */
-  objects.push_back(new Sphere(2.5f, glm::vec3(-4, -0.5, 10), mirror));
+  objects.push_back(new Sphere(2.5f, glm::vec3(-4, -0.5, 10), green));
 
   objects.push_back(new Sphere(0.5, glm::vec3(-1, -2.5, 6), red_specular));
-  objects.push_back(new Sphere(1.0f, glm::vec3(1, -2, 8), blue_dark));
+  objects.push_back(new Sphere(1.0f, glm::vec3(1, -2, 8), mirror_green));
 
   /* Define lights */
   lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(0.6)));
