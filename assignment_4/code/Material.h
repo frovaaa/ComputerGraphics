@@ -20,6 +20,8 @@ struct Material {
   float shininess = 0.0;
   // Assignment 4
   float reflection = 0.0f;
+  bool refracts_light = false;
+  float refraction_index = 0.0f;
 };
 
 #endif /* Material_h */

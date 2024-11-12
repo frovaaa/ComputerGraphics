@@ -787,7 +787,7 @@ bool intersects_any_object(Ray ray, glm::vec3 limit_point) {
  @return Color at the intersection point
  */
 glm::vec3 trace_ray(Ray ray, int current_depth) {
-  if (current_depth >= 2) {
+  if (current_depth >= 30) {
     return glm::vec3(0.0f, 0.0f, 0.0f);
   }
 
@@ -806,24 +806,42 @@ glm::vec3 trace_ray(Ray ray, int current_depth) {
       closest_hit = hit;
   }
 
-  glm::vec3 reflection_direction = glm::normalize(glm::reflect(
-      glm::normalize(ray.direction), glm::normalize(closest_hit.normal)));
-
   glm::vec3 color(0.0f);
 
   // If the ray hit something, save the color of the object hit
   // and compute the color using the Phong model
   // Otherwise, return black color
   if (closest_hit.hit) {
+    //      REFLECION RAY
+    glm::vec3 reflection_direction = glm::normalize(glm::reflect(
+        glm::normalize(ray.direction), glm::normalize(closest_hit.normal)));
     Ray reflected_ray(closest_hit.intersection + reflection_direction * 0.001f,
                       reflection_direction);
     glm::vec3 reflected_color = closest_hit.object->material.reflection *
                                 trace_ray(reflected_ray, ++current_depth);
 
+    //        TODO: Total Internal Reflection slide 28 check for >= 1
+    glm::vec3 refracted_color = glm::vec3(0.0f);
+    if (closest_hit.object->material.refracts_light) {
+      //  REFRACTION VALUES
+      glm::vec3 a =
+          closest_hit.normal * glm::dot(closest_hit.normal, ray.direction);
+      glm::vec3 b = ray.direction - a;
+      float beta = 1 / closest_hit.object->material.refraction_index;
+      float alpha =
+          sqrt(1 + (1 - beta * beta) * ((glm::length(b) * glm::length(b)) /
+                                        (glm::length(a) * glm::length(a))));
+      glm::vec3 refraction_direction = (alpha * a) + (beta * b);
+      Ray refraction_ray(
+          closest_hit.intersection + refraction_direction * 0.001f,
+          glm::normalize(refraction_direction));
+      refracted_color = trace_ray(refraction_ray, ++current_depth);
+    }
+
     color = PhongModel(closest_hit.intersection, closest_hit.normal,
                        glm::normalize(-ray.direction),
                        closest_hit.object->getMaterial()) +
-            reflected_color;
+            reflected_color + refracted_color;
   } else {
     color = glm::vec3(0.0, 0.0, 0.0);
   }
@@ -860,6 +878,15 @@ void sceneDefinition() {
   mirror_green.shininess = 0.5f;
   mirror_green.reflection = 1.0f;
 
+  Material white_refractive;
+  white_refractive.diffuse = glm::vec3(0.2f, 0.2f, 0.2f);
+  white_refractive.ambient = glm::vec3(0.01f, 0.3f, 0.01f);
+  white_refractive.specular = glm::vec3(0.0f);
+  white_refractive.shininess = 0.5f;
+  white_refractive.refracts_light = true;
+  white_refractive.refraction_index = 2.0f;
+  white_refractive.reflection = 0.1f;
+
   /* Assignment 2: Yellow material for the highly specular cone*/
   Material yellow;
   yellow.diffuse = glm::vec3(0.2f, 0.2f, 0.0f);
@@ -868,7 +895,10 @@ void sceneDefinition() {
   yellow.shininess = 100.0f;
 
   /* Add spheres */
-  objects.push_back(new Sphere(2.5f, glm::vec3(-4, -0.5, 10), green));
+  //    objects.push_back(new Sphere(2.5f, glm::vec3(-4, -0.5, 10), green));
+
+  // Assignment 4: Refractive sphere
+  objects.push_back(new Sphere(2.0f, glm::vec3(-3, -1, 8), white_refractive));
 
   objects.push_back(new Sphere(0.5, glm::vec3(-1, -2.5, 6), red_specular));
   objects.push_back(new Sphere(1.0f, glm::vec3(1, -2, 8), mirror_green));
