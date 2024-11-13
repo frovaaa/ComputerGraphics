@@ -826,7 +826,7 @@ glm::vec3 trace_ray(Ray ray, int current_depth) {
     glm::vec3 refracted_color = glm::vec3(0.0f);
 
     float fresnel_reflection = 1.0f;
-    float fresnel_refraction = 1.0f;
+    float fresnel_refraction = 0.0f;
 
     if (closest_hit.object->material.refracts_light) {
       float delta1 = 1.0f;
@@ -854,26 +854,34 @@ glm::vec3 trace_ray(Ray ray, int current_depth) {
       // are in critical angle if > 1 total internal relfection, no refraction
       if ((beta * sin(theta1)) <= 1) {
         refracted_color = trace_ray(refraction_ray, ++current_depth);
+        float theta2 = acos(glm::dot(fixed_normal, refraction_direction));
+
+        // Fresnel Effect
+        // First part of the formula
+        float comp1 = (delta1 * cos(theta1));
+        float comp2 = (delta2 * cos(theta2));
+
+        float second_comp1 = (delta1 * cos(theta2));
+        float second_comp2 = (delta2 * cos(theta1));
+
+        float first_power = pow(((comp1 - comp2) / (comp1 + comp2)), 2);
+
+        float second_power = pow(
+            ((second_comp1 - second_comp2) / (second_comp1 + second_comp2)), 2);
+
+        float fr = 0.5f * (first_power + second_power);
+
+        cout << "Fr " << fr << endl;
+
+        fresnel_reflection = fr;
+        fresnel_refraction = 1 - fr;
+      } else {
+        fresnel_reflection = 1.0f;
+        fresnel_refraction = 0.0f;
       }
 
-      float theta2 = acos(glm::dot(-fixed_normal, refraction_direction));
-
-      // Fresnel Effect
-      // First part of the formula
-      float comp1 = (delta1 * cos(theta1));
-      float comp2 = (delta2 * cos(theta2));
-
-      float second_comp1 = (delta1 * cos(theta2));
-      float second_comp2 = (delta2 * cos(theta1));
-
-      float fr =
-          (pow((comp1 - comp2) / (comp1 + comp2), 2) +
-           pow((second_comp1 - second_comp2) / (second_comp1 + second_comp2),
-               2)) /
-          2.0f;
-
-      fresnel_reflection = fr;
-      fresnel_refraction = 1 - fr;
+      // cout << "Fresnel reflection " << fresnel_reflection << endl;
+      // cout << "Fresnel refraction " << fresnel_refraction << endl;
     }
 
     color = PhongModel(closest_hit.intersection, closest_hit.normal,
@@ -950,7 +958,8 @@ void sceneDefinition() {
   //    objects.push_back(new Sphere(2.5f, glm::vec3(-4, -0.5, 10), green));
 
   // Assignment 4: Refractive sphere
-  objects.push_back(new Sphere(2.0f, glm::vec3(-3, -1, 8), refractive));
+  objects.push_back(
+      new Sphere(2.0f, glm::vec3(-3, -1, 8), refractive_reflective));
 
   objects.push_back(new Sphere(0.5, glm::vec3(-1, -2.5, 6), red_specular));
   objects.push_back(new Sphere(1.0f, glm::vec3(1, -2, 8), reflective));
