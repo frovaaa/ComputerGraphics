@@ -825,19 +825,22 @@ glm::vec3 trace_ray(Ray ray, int current_depth) {
 
     glm::vec3 refracted_color = glm::vec3(0.0f);
     if (closest_hit.object->material.refracts_light) {
-      // TODO: CHECK WITH NORMAL THE INSIDE OR OUTSIDE
       //  REFRACTION VALUES
       // Angle between normal and ray.direction (i) == theta1
       float theta1 = glm::dot(closest_hit.normal, ray.direction);
+      bool from_outside = theta1 < 0;
+      glm::vec3 fixed_normal =
+          from_outside ? closest_hit.normal : -closest_hit.normal;
+
       // beta is delta1 / delta2
-      float beta = 1 / closest_hit.object->material.refraction_index;
+      float beta = from_outside
+                       ? 1.0f / closest_hit.object->material.refraction_index
+                       : closest_hit.object->material.refraction_index;
 
       // Check if we are in the refraction angle, if beta*sin(theta1) is == 1 we
       // are in critical angle if > 1 total internal relfection, no refraction
-      // TODO: check what to do in critical angle
       if ((beta * sin(theta1)) <= 1) {
-        glm::vec3 a =
-            closest_hit.normal * glm::dot(closest_hit.normal, ray.direction);
+        glm::vec3 a = fixed_normal * glm::dot(fixed_normal, ray.direction);
         glm::vec3 b = ray.direction - a;
         float alpha =
             sqrt(1 + (1 - beta * beta) * ((glm::length(b) * glm::length(b)) /
