@@ -689,7 +689,7 @@ class Light {
 };
 
 vector<Light *> lights;  ///< A list of lights in the scene
-glm::vec3 ambient_light(0.02, 0.02, 0.02);
+glm::vec3 ambient_light(0.02f, 0.02f, 0.02f);
 
 /** Function for computing color of an object according to the Phong Model
  @param point A point belonging to the object for which the color is computed
@@ -718,9 +718,11 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
 
     // Assignment 4: Check if intersects to create shades
     // TODO: Correct (cf sphere's ass)
-    Ray ray_shade(point + (light_direction * 0.001f), light_direction);
-    int shadow_flag =
-        intersects_any_object(ray_shade, lights[i]->position) ? 0 : 1;
+    Ray ray_shade(point + (light_direction * 0.01f), light_direction);
+
+    if (intersects_any_object(ray_shade, lights[i]->position)) {
+      continue;
+    }
 
     // Angle between the normal and the light direction
     // No need to check negative as we clamp the value
@@ -750,7 +752,6 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
     }
     // Add the contribution of the light source to the final color
     color += lights[i]->color * (diffuse + specular) * att_d;
-    color *= shadow_flag;
   }
 
   // Add ambient illumination
@@ -787,7 +788,7 @@ bool intersects_any_object(Ray ray, glm::vec3 limit_point) {
  @return Color at the intersection point
  */
 glm::vec3 trace_ray(Ray ray, int current_depth) {
-  if (current_depth >= 30) {
+  if (current_depth >= 5) {
     return glm::vec3(0.0f, 0.0f, 0.0f);
   }
 
@@ -820,22 +821,31 @@ glm::vec3 trace_ray(Ray ray, int current_depth) {
     glm::vec3 reflected_color = closest_hit.object->material.reflection *
                                 trace_ray(reflected_ray, ++current_depth);
 
-    //        TODO: Total Internal Reflection slide 28 check for >= 1
     glm::vec3 refracted_color = glm::vec3(0.0f);
     if (closest_hit.object->material.refracts_light) {
+      // TODO: CHECK WITH NORMAL THE INSIDE OR OUTSIDE
       //  REFRACTION VALUES
-      glm::vec3 a =
-          closest_hit.normal * glm::dot(closest_hit.normal, ray.direction);
-      glm::vec3 b = ray.direction - a;
+      // Angle between normal and ray.direction (i) == theta1
+      float theta1 = glm::dot(closest_hit.normal, ray.direction);
+      // beta is delta1 / delta2
       float beta = 1 / closest_hit.object->material.refraction_index;
-      float alpha =
-          sqrt(1 + (1 - beta * beta) * ((glm::length(b) * glm::length(b)) /
-                                        (glm::length(a) * glm::length(a))));
-      glm::vec3 refraction_direction = (alpha * a) + (beta * b);
-      Ray refraction_ray(
-          closest_hit.intersection + refraction_direction * 0.001f,
-          glm::normalize(refraction_direction));
-      refracted_color = trace_ray(refraction_ray, ++current_depth);
+
+      // Check if we are in the refraction angle, if beta*sin(theta1) is == 1 we
+      // are in critical angle if > 1 total internal relfection, no refraction
+      // TODO: check what to do in critical angle
+      if ((beta * sin(theta1)) < 1) {
+        glm::vec3 a =
+            closest_hit.normal * glm::dot(closest_hit.normal, ray.direction);
+        glm::vec3 b = ray.direction - a;
+        float alpha =
+            sqrt(1 + (1 - beta * beta) * ((glm::length(b) * glm::length(b)) /
+                                          (glm::length(a) * glm::length(a))));
+        glm::vec3 refraction_direction = (alpha * a) + (beta * b);
+        Ray refraction_ray(
+            closest_hit.intersection + refraction_direction * 0.1f,
+            glm::normalize(refraction_direction));
+        refracted_color = trace_ray(refraction_ray, ++current_depth);
+      }
     }
 
     color = PhongModel(closest_hit.intersection, closest_hit.normal,
@@ -869,23 +879,12 @@ void sceneDefinition() {
   green.ambient = glm::vec3(0.01f, 0.3f, 0.01f);
   green.specular = glm::vec3(0.0f);
   green.shininess = 0.0f;
-  /* Assignment 4: mirror material */
 
-  Material mirror_green;
-  mirror_green.diffuse = glm::vec3(0.02f, 0.09f, 0.02f);
-  mirror_green.ambient = glm::vec3(0.01f, 0.3f, 0.01f);
-  mirror_green.specular = glm::vec3(0.0f);
-  mirror_green.shininess = 0.5f;
-  mirror_green.reflection = 1.0f;
-
-  Material white_refractive;
-  white_refractive.diffuse = glm::vec3(0.2f, 0.2f, 0.2f);
-  white_refractive.ambient = glm::vec3(0.01f, 0.3f, 0.01f);
-  white_refractive.specular = glm::vec3(0.0f);
-  white_refractive.shininess = 0.5f;
-  white_refractive.refracts_light = true;
-  white_refractive.refraction_index = 2.0f;
-  white_refractive.reflection = 0.1f;
+  Material white;
+  white.diffuse = glm::vec3(0.9f);
+  white.ambient = glm::vec3(0.1f);
+  white.specular = glm::vec3(0.0f);
+  white.shininess = 0.0f;
 
   /* Assignment 2: Yellow material for the highly specular cone*/
   Material yellow;
@@ -894,19 +893,43 @@ void sceneDefinition() {
   yellow.specular = glm::vec3(1.0);
   yellow.shininess = 100.0f;
 
+  /* Assignment 4: mirror material */
+  Material reflective;
+  reflective.diffuse = glm::vec3(0.0f);
+  reflective.ambient = glm::vec3(0.0f);
+  reflective.specular = glm::vec3(0.0f);
+  reflective.shininess = 0.5f;
+  reflective.reflection = 1.0f;
+
+  Material refractive;
+  refractive.diffuse = glm::vec3(0.0f);
+  refractive.ambient = glm::vec3(0.0f);
+  refractive.specular = glm::vec3(0.0f);
+  refractive.refracts_light = true;
+  refractive.refraction_index = 2.0f;
+
+  Material refractive_reflective;
+  refractive_reflective.diffuse = glm::vec3(0.0f);
+  refractive_reflective.ambient = glm::vec3(0.0f);
+  refractive_reflective.specular = glm::vec3(1.0f);
+  refractive_reflective.shininess = 100.0f;
+  refractive_reflective.refracts_light = true;
+  refractive_reflective.refraction_index = 2.0f;
+  refractive_reflective.reflection = 0.5f;
+
   /* Add spheres */
   //    objects.push_back(new Sphere(2.5f, glm::vec3(-4, -0.5, 10), green));
 
   // Assignment 4: Refractive sphere
-  objects.push_back(new Sphere(2.0f, glm::vec3(-3, -1, 8), white_refractive));
+  objects.push_back(new Sphere(2.0f, glm::vec3(-3, -1, 8), refractive));
 
   objects.push_back(new Sphere(0.5, glm::vec3(-1, -2.5, 6), red_specular));
-  objects.push_back(new Sphere(1.0f, glm::vec3(1, -2, 8), mirror_green));
+  objects.push_back(new Sphere(1.0f, glm::vec3(1, -2, 8), reflective));
 
   /* Define lights */
-  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(0.6)));
-  lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(0.2)));
-  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.1)));
+  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(1.0f)));
+  lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(0.1f)));
+  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.4f)));
 
   /* Assignment 2: Planes */
   // Points at extremities of the box (top right and back left)
@@ -919,18 +942,18 @@ void sceneDefinition() {
   glm::vec3 z_norm = glm::vec3(0, 0, 1);
 
   // Left wall
-  objects.push_back(new Plane(back_left_p, x_norm, green));
+  objects.push_back(new Plane(back_left_p, x_norm, red_specular));
   // Bottom wall
-  objects.push_back(new Plane(back_left_p, y_norm, green));
+  objects.push_back(new Plane(back_left_p, y_norm, white));
   // Back wall
-  objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
+  // objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
 
   // Right wall
-  objects.push_back(new Plane(top_right_p, x_norm, red_specular));
+  objects.push_back(new Plane(top_right_p, x_norm, blue_dark));
   // Above/top wall
   objects.push_back(new Plane(top_right_p, y_norm, red_specular));
   // Front wall
-  objects.push_back(new Plane(top_right_p, z_norm, red_specular));
+  objects.push_back(new Plane(top_right_p, z_norm, green));
 
   /* Assignment 2: Adding cones */
 
