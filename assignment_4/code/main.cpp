@@ -718,8 +718,10 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
 
     // Assignment 4: Check if intersects to create shades
     // TODO: Correct (cf sphere's ass)
-    Ray ray_shade(point + (light_direction * 0.01f), light_direction);
+    Ray ray_shade(point + (light_direction * 0.001f), light_direction);
 
+    // If there is any object between the intersection point and the light, we
+    // do not contribute the color
     if (intersects_any_object(ray_shade, lights[i]->position)) {
       continue;
     }
@@ -911,11 +913,11 @@ void sceneDefinition() {
   Material refractive_reflective;
   refractive_reflective.diffuse = glm::vec3(0.0f);
   refractive_reflective.ambient = glm::vec3(0.0f);
-  refractive_reflective.specular = glm::vec3(1.0f);
-  refractive_reflective.shininess = 100.0f;
+  refractive_reflective.specular = glm::vec3(0.0f);
+  refractive_reflective.shininess = 0.5f;
   refractive_reflective.refracts_light = true;
   refractive_reflective.refraction_index = 2.0f;
-  refractive_reflective.reflection = 0.5f;
+  refractive_reflective.reflection = 1.0f;
 
   /* Add spheres */
   //    objects.push_back(new Sphere(2.5f, glm::vec3(-4, -0.5, 10), green));
