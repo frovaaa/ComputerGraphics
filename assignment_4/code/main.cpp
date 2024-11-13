@@ -824,39 +824,63 @@ glm::vec3 trace_ray(Ray ray, int current_depth) {
                                 trace_ray(reflected_ray, ++current_depth);
 
     glm::vec3 refracted_color = glm::vec3(0.0f);
+
+    float fresnel_reflection = 1.0f;
+    float fresnel_refraction = 1.0f;
+
     if (closest_hit.object->material.refracts_light) {
-      //  REFRACTION VALUES
+      float delta1 = 1.0f;
+      float delta2 = closest_hit.object->getMaterial().refraction_index;
       // Angle between normal and ray.direction (i) == theta1
-      float theta1 = glm::dot(closest_hit.normal, ray.direction);
-      bool from_outside = theta1 < 0;
+      float theta1 = acos(glm::dot(closest_hit.normal, ray.direction));
+      //  REFRACTION VALUES
+      bool from_outside = theta1 > 0;
       glm::vec3 fixed_normal =
           from_outside ? closest_hit.normal : -closest_hit.normal;
 
       // beta is delta1 / delta2
-      float beta = from_outside
-                       ? 1.0f / closest_hit.object->material.refraction_index
-                       : closest_hit.object->material.refraction_index;
+      float beta = from_outside ? 1.0f / delta2 : delta2;
 
+      glm::vec3 a = fixed_normal * glm::dot(fixed_normal, ray.direction);
+      glm::vec3 b = ray.direction - a;
+      float alpha =
+          sqrt(1 + (1 - beta * beta) * ((glm::length(b) * glm::length(b)) /
+                                        (glm::length(a) * glm::length(a))));
+      glm::vec3 refraction_direction = (alpha * a) + (beta * b);
+      Ray refraction_ray(
+          closest_hit.intersection + refraction_direction * 0.01f,
+          glm::normalize(refraction_direction));
       // Check if we are in the refraction angle, if beta*sin(theta1) is == 1 we
       // are in critical angle if > 1 total internal relfection, no refraction
       if ((beta * sin(theta1)) <= 1) {
-        glm::vec3 a = fixed_normal * glm::dot(fixed_normal, ray.direction);
-        glm::vec3 b = ray.direction - a;
-        float alpha =
-            sqrt(1 + (1 - beta * beta) * ((glm::length(b) * glm::length(b)) /
-                                          (glm::length(a) * glm::length(a))));
-        glm::vec3 refraction_direction = (alpha * a) + (beta * b);
-        Ray refraction_ray(
-            closest_hit.intersection + refraction_direction * 0.01f,
-            glm::normalize(refraction_direction));
         refracted_color = trace_ray(refraction_ray, ++current_depth);
       }
+
+      float theta2 = acos(glm::dot(-fixed_normal, refraction_direction));
+
+      // Fresnel Effect
+      // First part of the formula
+      float comp1 = (delta1 * cos(theta1));
+      float comp2 = (delta2 * cos(theta2));
+
+      float second_comp1 = (delta1 * cos(theta2));
+      float second_comp2 = (delta2 * cos(theta1));
+
+      float fr =
+          (pow((comp1 - comp2) / (comp1 + comp2), 2) +
+           pow((second_comp1 - second_comp2) / (second_comp1 + second_comp2),
+               2)) /
+          2.0f;
+
+      fresnel_reflection = fr;
+      fresnel_refraction = 1 - fr;
     }
 
     color = PhongModel(closest_hit.intersection, closest_hit.normal,
                        glm::normalize(-ray.direction),
                        closest_hit.object->getMaterial()) +
-            reflected_color + refracted_color;
+            reflected_color * fresnel_reflection +
+            refracted_color * fresnel_refraction;
   } else {
     color = glm::vec3(0.0, 0.0, 0.0);
   }
