@@ -180,7 +180,7 @@ class Sphere : public Object {
         hit.hit = true;
       }
       // Float comparison: if the radius is equal
-    } else if (equalFloats(D, this->radius, 0.01)) {
+    } else if (equalFloats(D, this->radius, 0.0001f)) {
       // t = a+b	In this case b == 0 so a == t
       if (a > 0) {
         // One solution
@@ -835,7 +835,7 @@ glm::vec3 trace_ray(Ray ray, int current_depth) {
       // Check if we are in the refraction angle, if beta*sin(theta1) is == 1 we
       // are in critical angle if > 1 total internal relfection, no refraction
       // TODO: check what to do in critical angle
-      if ((beta * sin(theta1)) < 1) {
+      if ((beta * sin(theta1)) <= 1) {
         glm::vec3 a =
             closest_hit.normal * glm::dot(closest_hit.normal, ray.direction);
         glm::vec3 b = ray.direction - a;
@@ -844,7 +844,7 @@ glm::vec3 trace_ray(Ray ray, int current_depth) {
                                           (glm::length(a) * glm::length(a))));
         glm::vec3 refraction_direction = (alpha * a) + (beta * b);
         Ray refraction_ray(
-            closest_hit.intersection + refraction_direction * 0.1f,
+            closest_hit.intersection + refraction_direction * 0.01f,
             glm::normalize(refraction_direction));
         refracted_color = trace_ray(refraction_ray, ++current_depth);
       }
