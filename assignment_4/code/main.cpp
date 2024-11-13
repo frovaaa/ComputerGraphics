@@ -656,7 +656,7 @@ class Light {
 };
 
 vector<Light *> lights;  ///< A list of lights in the scene
-glm::vec3 ambient_light(0.01f, 0.01f, 0.01f);
+glm::vec3 ambient_light(0.02f, 0.02f, 0.02f);
 
 /** Function for computing color of an object according to the Phong Model
  @param point A point belonging to the object for which the color is computed
@@ -670,21 +670,12 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
   // Illumination intensity
   glm::vec3 color(0.0);
 
-  // if (material.reflection) {
-  //    glm::vec3 reflection_direction = glm::reflect(-view_direction, normal);
-  //    Ray ray(point + reflection_direction * 2.0f, reflection_direction);
-  //    glm::vec3 reflected_color = trace_ray(ray);
-  //    return reflected_color;
-  //
-  //}
-
   // Iterate over all light sources
   for (int i = 0; i < lights.size(); ++i) {
     // light direction
     glm::vec3 light_direction = glm::normalize(lights[i]->position - point);
 
     // Assignment 4: Check if intersects to create shades
-    // TODO: Correct (cf sphere's ass)
     Ray ray_shade(point + (light_direction * 0.001f), light_direction);
 
     // If there is any object between the intersection point and the light, we
@@ -757,7 +748,7 @@ bool intersects_any_object(Ray ray, glm::vec3 limit_point) {
  @return Color at the intersection point
  */
 glm::vec3 trace_ray(Ray ray, int current_depth) {
-  if (current_depth >= 4) {
+  if (current_depth >= 5) {
     return glm::vec3(0.0f, 0.0f, 0.0f);
   }
 
@@ -776,11 +767,19 @@ glm::vec3 trace_ray(Ray ray, int current_depth) {
       closest_hit = hit;
   }
 
-  glm::vec3 color(0.0f);
-
   // If the ray hit something, save the color of the object hit
   // and compute the color using the Phong model
   // Otherwise, return black color
+  glm::vec3 color(0.0f);
+
+  // Initialize the indices so we can use them in the final color computation
+  // even if we don't refract
+  float fresnel_refraction = 0.0f;
+  float fresnel_reflection = 0.0f;
+  // Base color values won't contribute to the end color
+  glm::vec3 refracted_color = glm::vec3(0.0f);
+  glm::vec3 reflected_color = glm::vec3(0.0f);
+  /* If we hit, go further */
   if (closest_hit.hit) {
     // Compute reflection direction
     glm::vec3 reflection_direction = glm::normalize(glm::reflect(
@@ -789,13 +788,10 @@ glm::vec3 trace_ray(Ray ray, int current_depth) {
     Ray reflected_ray(closest_hit.intersection + reflection_direction * 0.001f,
                       reflection_direction);
     // Compute the reflection color
-    glm::vec3 reflected_color = closest_hit.object->material.reflection *
-                                trace_ray(reflected_ray, current_depth + 1);
-
-    glm::vec3 refracted_color = glm::vec3(0.0f);
+    reflected_color = closest_hit.object->material.reflection *
+                      trace_ray(reflected_ray, current_depth + 1);
 
     float fresnel_reflection = closest_hit.object->getMaterial().reflection;
-    float fresnel_refraction = 0.0f;
 
     /* If the current object refracts the light */
     if (closest_hit.object->material.refracts_light) {
@@ -841,20 +837,17 @@ glm::vec3 trace_ray(Ray ray, int current_depth) {
 
       float fr = 0.5f * (first_power + second_power);
 
-      cout << "Fr " << fr << endl;
-
       fresnel_reflection = fr;
       fresnel_refraction = 1.0 - fresnel_reflection;
-
-      return reflected_color * fresnel_reflection +
-             refracted_color * fresnel_refraction;
-
-    } else {
-      color = PhongModel(closest_hit.intersection, closest_hit.normal,
-                         glm::normalize(-ray.direction),
-                         closest_hit.object->getMaterial());
-      return color + reflected_color * fresnel_reflection;
     }
+
+    /* If there was no reflection and/or refraction, it will not contribute to
+     * the sum */
+    color = PhongModel(closest_hit.intersection, closest_hit.normal,
+                       glm::normalize(-ray.direction),
+                       closest_hit.object->getMaterial()) +
+            glm::clamp(fresnel_reflection, 0.0f, 1.0f) * reflected_color +
+            glm::clamp(fresnel_refraction, 0.0f, 1.0f) * refracted_color;
   }
   return color;
 }
