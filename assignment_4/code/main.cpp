@@ -132,68 +132,35 @@ class Sphere : public Object {
 
   /** Implementation of the intersection function*/
   Hit intersect(Ray ray) {
+    glm::vec3 c = center - ray.origin;
+
+    float cdotc = glm::dot(c, c);
+    float cdotd = glm::dot(c, ray.direction);
+
     Hit hit;
-    hit.hit = false;
-    hit.intersection = glm::vec3(0);
-    hit.distance = 0;
-    hit.normal = glm::vec3(0);
-    hit.object = this;
 
-    // If the origin of the primary ray (camera) is not at the world 0,0,0
-    // We translate the center of the sphere to match the offest and act like if
-    // the camera is at 0,0,0
-    glm::vec3 c = this->center - ray.origin;
-
-    // If the origin of the ray is inside the Sphere, we return black color
-    // In this case the vector c is equal to the translated new center of the
-    // sphere C
-    if (glm::length(c) <= this->radius) {
-      // The origin of the ray is inside the Sphere
-      return hit;
+    float D = 0;
+    if (cdotc > cdotd * cdotd) {
+      D = sqrt(cdotc - cdotd * cdotd);
     }
+    if (D <= radius) {
+      hit.hit = true;
+      float t1 = cdotd - sqrt(radius * radius - D * D);
+      float t2 = cdotd + sqrt(radius * radius - D * D);
 
-    float a = glm::dot(c, ray.direction);
-
-    float D = sqrt(pow(glm::length(c), 2) - pow(a, 2));
-
-    // Cases
-    if (D < this->radius) {
-      // Two solutions
-      float b = sqrt(pow(this->radius, 2) - pow(D, 2));
-      float t1 = a + b;
-      float t2 = a - b;
-
-      // Now we need to check if the t are > 0, otherwise the sphere is behind
-      // the camera and it doesn't need to be rendered
-      if (t1 > 0 || t2 > 0) {
-        // At least one of the two intersections is in front of the camera
-        // I set at INFINITY if the t is < 0
-        t1 = t1 > 0 ? t1 : INFINITY;
-        t2 = t2 > 0 ? t2 : INFINITY;
-
-        // We choose only the intersection that is closest to the origin of the
-        // ray
-        float t = t1 < t2 ? t1 : t2;
-
-        hit.intersection = ray.direction * t;
-        hit.distance = t;
-        hit.hit = true;
+      float t = t1;
+      if (t < 0) t = t2;
+      if (t < 0) {
+        hit.hit = false;
+        return hit;
       }
-      // Float comparison: if the radius is equal
-    } else if (equalFloats(D, this->radius, 0.0001f)) {
-      // t = a+b	In this case b == 0 so a == t
-      if (a > 0) {
-        // One solution
-        hit.intersection = ray.direction * a;
 
-        hit.distance = a;
-        hit.hit = true;
-      }
-    }
-    // If the ray hit the object, compute the normal
-    if (hit.hit) {
-      // the coordinates are already shifted here
-      hit.normal = glm::normalize(hit.intersection - c);
+      hit.intersection = ray.origin + t * ray.direction;
+      hit.normal = glm::normalize(hit.intersection - center);
+      hit.distance = glm::distance(ray.origin, hit.intersection);
+      hit.object = this;
+    } else {
+      hit.hit = false;
     }
     return hit;
   }
@@ -689,7 +656,7 @@ class Light {
 };
 
 vector<Light *> lights;  ///< A list of lights in the scene
-glm::vec3 ambient_light(0.02f, 0.02f, 0.02f);
+glm::vec3 ambient_light(0.01f, 0.01f, 0.01f);
 
 /** Function for computing color of an object according to the Phong Model
  @param point A point belonging to the object for which the color is computed
@@ -790,7 +757,7 @@ bool intersects_any_object(Ray ray, glm::vec3 limit_point) {
  @return Color at the intersection point
  */
 glm::vec3 trace_ray(Ray ray, int current_depth) {
-  if (current_depth >= 5) {
+  if (current_depth >= 4) {
     return glm::vec3(0.0f, 0.0f, 0.0f);
   }
 
@@ -815,82 +782,79 @@ glm::vec3 trace_ray(Ray ray, int current_depth) {
   // and compute the color using the Phong model
   // Otherwise, return black color
   if (closest_hit.hit) {
-    //      REFLECION RAY
+    // Compute reflection direction
     glm::vec3 reflection_direction = glm::normalize(glm::reflect(
         glm::normalize(ray.direction), glm::normalize(closest_hit.normal)));
+    // Define reflection ray
     Ray reflected_ray(closest_hit.intersection + reflection_direction * 0.001f,
                       reflection_direction);
+    // Compute the reflection color
     glm::vec3 reflected_color = closest_hit.object->material.reflection *
-                                trace_ray(reflected_ray, ++current_depth);
+                                trace_ray(reflected_ray, current_depth + 1);
 
     glm::vec3 refracted_color = glm::vec3(0.0f);
 
-    float fresnel_reflection = 1.0f;
+    float fresnel_reflection = closest_hit.object->getMaterial().reflection;
     float fresnel_refraction = 0.0f;
 
+    /* If the current object refracts the light */
     if (closest_hit.object->material.refracts_light) {
       float delta1 = 1.0f;
       float delta2 = closest_hit.object->getMaterial().refraction_index;
       // Angle between normal and ray.direction (i) == theta1
-      float theta1 = acos(glm::dot(closest_hit.normal, ray.direction));
-      //  REFRACTION VALUES
-      bool from_outside = theta1 > 0;
-      glm::vec3 fixed_normal =
+      bool from_outside = (glm::dot(closest_hit.normal, -ray.direction) > 0);
+      glm::vec3 normal =
           from_outside ? closest_hit.normal : -closest_hit.normal;
+      float cos_theta1 = glm::dot(normal, -ray.direction);
 
-      // beta is delta1 / delta2
-      float beta = from_outside ? 1.0f / delta2 : delta2;
-
-      glm::vec3 a = fixed_normal * glm::dot(fixed_normal, ray.direction);
-      glm::vec3 b = ray.direction - a;
-      float alpha =
-          sqrt(1 + (1 - beta * beta) * ((glm::length(b) * glm::length(b)) /
-                                        (glm::length(a) * glm::length(a))));
-      glm::vec3 refraction_direction = (alpha * a) + (beta * b);
-      Ray refraction_ray(
-          closest_hit.intersection + refraction_direction * 0.01f,
-          glm::normalize(refraction_direction));
-      // Check if we are in the refraction angle, if beta*sin(theta1) is == 1 we
-      // are in critical angle if > 1 total internal relfection, no refraction
-      if ((beta * sin(theta1)) <= 1) {
-        refracted_color = trace_ray(refraction_ray, ++current_depth);
-        float theta2 = acos(glm::dot(fixed_normal, refraction_direction));
-
-        // Fresnel Effect
-        // First part of the formula
-        float comp1 = (delta1 * cos(theta1));
-        float comp2 = (delta2 * cos(theta2));
-
-        float second_comp1 = (delta1 * cos(theta2));
-        float second_comp2 = (delta2 * cos(theta1));
-
-        float first_power = pow(((comp1 - comp2) / (comp1 + comp2)), 2);
-
-        float second_power = pow(
-            ((second_comp1 - second_comp2) / (second_comp1 + second_comp2)), 2);
-
-        float fr = 0.5f * (first_power + second_power);
-
-        cout << "Fr " << fr << endl;
-
-        fresnel_reflection = fr;
-        fresnel_refraction = 1 - fr;
-      } else {
-        fresnel_reflection = 1.0f;
-        fresnel_refraction = 0.0f;
+      /* If the ray is coming from inside the object, we invert delta 1 and
+       * delta 2 to keep the formula coherent */
+      if (!from_outside) {
+        float temp = delta1;
+        delta1 = delta2;
+        delta2 = temp;
       }
+      // Compute the refraction direction
+      glm::vec3 refraction_direction =
+          glm::refract(ray.direction, normal, delta1 / delta2);
+      // Compute the refraction ray
+      Ray refraction_ray(
+          closest_hit.intersection + refraction_direction * 0.001f,
+          refraction_direction);
+      // Compute the color of the refraction ray
+      refracted_color = trace_ray(refraction_ray, current_depth + 1);
+      // Compute cos(theta2): We must invert the normal
+      float cos_theta2 = glm::dot(-normal, refraction_direction);
 
-      // cout << "Fresnel reflection " << fresnel_reflection << endl;
-      // cout << "Fresnel refraction " << fresnel_refraction << endl;
+      // Fresnel Effect
+      // First part of the formula
+      float comp1 = (delta1 * cos_theta1);
+      float comp2 = (delta2 * cos_theta2);
+
+      float second_comp1 = (delta1 * cos_theta2);
+      float second_comp2 = (delta2 * cos_theta1);
+
+      float first_power = pow(((comp1 - comp2) / (comp1 + comp2)), 2);
+
+      float second_power = pow(
+          ((second_comp1 - second_comp2) / (second_comp1 + second_comp2)), 2);
+
+      float fr = 0.5f * (first_power + second_power);
+
+      cout << "Fr " << fr << endl;
+
+      fresnel_reflection = fr;
+      fresnel_refraction = 1.0 - fresnel_reflection;
+
+      return reflected_color * fresnel_reflection +
+             refracted_color * fresnel_refraction;
+
+    } else {
+      color = PhongModel(closest_hit.intersection, closest_hit.normal,
+                         glm::normalize(-ray.direction),
+                         closest_hit.object->getMaterial());
+      return color + reflected_color * fresnel_reflection;
     }
-
-    color = PhongModel(closest_hit.intersection, closest_hit.normal,
-                       glm::normalize(-ray.direction),
-                       closest_hit.object->getMaterial()) +
-            reflected_color * fresnel_reflection +
-            refracted_color * fresnel_refraction;
-  } else {
-    color = glm::vec3(0.0, 0.0, 0.0);
   }
   return color;
 }
