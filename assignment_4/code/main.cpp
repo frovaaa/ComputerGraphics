@@ -880,6 +880,12 @@ void sceneDefinition() {
   white.specular = glm::vec3(0.0f);
   white.shininess = 0.0f;
 
+  Material black;
+  black.diffuse = glm::vec3(0.0f);
+  black.ambient = glm::vec3(0.0f);
+  black.specular = glm::vec3(0.08f);
+  black.shininess = 0.0f;
+
   /* Assignment 2: Yellow material for the highly specular cone*/
   Material yellow;
   yellow.diffuse = glm::vec3(0.2f, 0.2f, 0.0f);
@@ -946,7 +952,7 @@ void sceneDefinition() {
   // Right wall
   objects.push_back(new Plane(top_right_p, x_norm, blue_dark));
   // Above/top wall
-  objects.push_back(new Plane(top_right_p, y_norm, red_specular));
+  objects.push_back(new Plane(top_right_p, y_norm, black));
   // Front wall
   objects.push_back(new Plane(top_right_p, z_norm, green));
 
