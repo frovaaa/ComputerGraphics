@@ -23,6 +23,7 @@ using namespace std;
 bool equalFloats(float a, float b, float EPSILON) {
   return (std::fabs(a - b) < EPSILON);
 }
+class Box;
 
 /**
  Class representing a single ray.
@@ -39,6 +40,10 @@ class Ray {
   Ray(glm::vec3 origin, glm::vec3 direction)
       : origin(origin), direction(direction) {}
 };
+
+bool intersects_any_object(Ray, glm::vec3);
+
+glm::vec3 trace_ray(Ray);
 
 class Object;
 
@@ -101,100 +106,6 @@ class Object {
 
 vector<Object *> objects;  ///< A list of all objects in the scene
 
-/**
- Implementation of the class Object for sphere shape.
- */
-class Sphere : public Object {
- private:
-  float radius;      ///< Radius of the sphere
-  glm::vec3 center;  ///< Center of the sphere
-
- public:
-  /**
-   The constructor of the sphere
-   @param radius Radius of the sphere
-   @param center Center of the sphere
-   @param color Color of the sphere
-   */
-  Sphere(float radius, glm::vec3 center, glm::vec3 color)
-      : radius(radius), center(center) {
-    this->color = color;
-  }
-
-  Sphere(float radius, glm::vec3 center, Material material)
-      : radius(radius), center(center) {
-    this->material = material;
-  }
-
-  /** Implementation of the intersection function*/
-  Hit intersect(Ray ray) {
-    Hit hit;
-    hit.hit = false;
-    hit.intersection = glm::vec3(0);
-    hit.distance = 0;
-    hit.normal = glm::vec3(0);
-    hit.object = this;
-
-    // If the origin of the primary ray (camera) is not at the world 0,0,0
-    // We translate the center of the sphere to match the offest and act like if
-    // the camera is at 0,0,0
-    glm::vec3 c = this->center - ray.origin;
-
-    // If the origin of the ray is inside the Sphere, we return black color
-    // In this case the vector c is equal to the translated new center of the
-    // sphere C
-    if (glm::length(c) <= this->radius) {
-      // The origin of the ray is inside the Sphere
-      return hit;
-    }
-
-    float a = glm::dot(c, ray.direction);
-
-    float D = sqrt(pow(glm::length(c), 2) - pow(a, 2));
-
-    // Cases
-    if (D < this->radius) {
-      // Two solutions
-      float b = sqrt(pow(this->radius, 2) - pow(D, 2));
-      float t1 = a + b;
-      float t2 = a - b;
-
-      // Now we need to check if the t are > 0, otherwise the sphere is behind
-      // the camera and it doesn't need to be rendered
-      if (t1 > 0 || t2 > 0) {
-        // At least one of the two intersections is in front of the camera
-        // I set at INFINITY if the t is < 0
-        t1 = t1 > 0 ? t1 : INFINITY;
-        t2 = t2 > 0 ? t2 : INFINITY;
-
-        // We choose only the intersection that is closest to the origin of the
-        // ray
-        float t = t1 < t2 ? t1 : t2;
-
-        hit.intersection = ray.direction * t;
-        hit.distance = t;
-        hit.hit = true;
-      }
-      // Float comparison: if the radius is equal
-    } else if (equalFloats(D, this->radius, 0.01)) {
-      // t = a+b	In this case b == 0 so a == t
-      if (a > 0) {
-        // One solution
-        hit.intersection = ray.direction * a;
-
-        hit.distance = a;
-        hit.hit = true;
-      }
-    }
-    // If the ray hit the object, compute the normal
-    if (hit.hit) {
-      // the coordinates are already shifted here
-      hit.normal = glm::normalize(hit.intersection - c);
-    }
-    return hit;
-  }
-};
-
 class Plane : public Object {
  private:
   glm::vec3 normal;
@@ -246,154 +157,6 @@ class Plane : public Object {
   }
 };
 
-class Cone : public Object {
- private:
-  Plane *plane;
-
- public:
-  Cone(Material material) {
-    this->material = material;
-    // The point must be in the center of the cone's base
-    plane = new Plane(glm::vec3(0, 1, 0), glm::vec3(0.0, 1, 0));
-  }
-
-  Hit intersect(Ray ray) {
-    /*  ---- Exercise 2 -----
-     * Implement the ray-cone intersection. Before intersecting the ray with the
-     * cone, make sure that you transform the ray into the local coordinate
-     * system. Remember about normalizing all the directions after
-     * transformations.
-     */
-
-    /* Assignment 2: Intersect function for cone and ray */
-
-    // Radius of the cone's base
-    float BASE_RADIUS = 1.0f;
-    Hit hit;
-    hit.hit = false;
-    hit.intersection = glm::vec3(0);
-    hit.distance = 0;
-    hit.normal = glm::vec3(0);
-    hit.object = this;
-
-    /* Conversion to homogenous and local coordinates */
-    // Conversion to Homogeneous coordinates
-    glm::vec4 localRayOrigin = glm::vec4(ray.origin, 1.0f);
-    glm::vec4 localRayDirection = glm::vec4(ray.direction, 0.0f);
-
-    // Apply the inverse matrix to bring the ray to local coordinates
-    localRayOrigin = this->inverseTransformationMatrix * localRayOrigin;
-    localRayDirection =
-        glm::normalize(this->inverseTransformationMatrix * localRayDirection);
-
-    // We need a local ray to pass to the plane intersect function
-    Ray *localRay =
-        new Ray(glm::vec3(localRayOrigin), glm::vec3(localRayDirection));
-
-    // Checking if the ray hits the plane (base of the cone)
-    Hit hitPlane = this->plane->intersect(*localRay);
-    // Center of the cone's base
-    glm::vec3 baseCenter = glm::vec3(0.0f, 1.0f, 0.0f);
-
-    // Check if the base of the cone was hit
-    if (hitPlane.hit) {
-      /* If the cone is not hit at all, the fields other than 'hit' are never
-       * used, so we can assign them like this now. Reminder: fields of the
-       * Hit structure are in global coordinates
-       */
-      hit.intersection = glm::vec3(this->transformationMatrix *
-                                   glm::vec4(hitPlane.intersection, 1.0f));
-      hit.normal = glm::normalize(
-          glm::vec3(this->normalMatrix * glm::vec4(hitPlane.normal, 0.0f)));
-      hit.distance = glm::distance(hit.intersection, ray.origin);
-      hit.hit = hitPlane.hit;
-
-      /* If the radius is superior to one, it is not part of the cone's base */
-      // hitPlane.intersection is in local coordinates
-      if (hit.hit &&
-          glm::distance(hitPlane.intersection, baseCenter) > BASE_RADIUS) {
-        hit.hit = false;
-      }
-    }
-    /* Equation of the cone is x^2 + z^2 - y^2 = 0
-     * Search for gamma(t) = x^2 + z^2 - y^2*/
-
-    /* Solve with the quadratic formula */
-    // Quadratic formula coefficients
-    float a = pow(localRayDirection.x, 2) + pow(localRayDirection.z, 2) -
-              pow(localRayDirection.y, 2);
-    float b = 2 * (localRayDirection.x * localRayOrigin.x +
-                   localRayDirection.z * localRayOrigin.z -
-                   localRayDirection.y * localRayOrigin.y);
-    float c = pow(localRayOrigin.x, 2) + pow(localRayOrigin.z, 2) -
-              pow(localRayOrigin.y, 2);
-
-    // b^2 - 4ac
-    float delta = pow(b, 2) - 4 * (a * c);
-    // If delta < 0, no solution
-    if (delta < 0) {
-      return hit;
-    }
-
-    float t = INFINITY;
-    // Compute both t
-    float t_1 = (-b + sqrt(delta)) / (2 * a);
-    float t_2 = (-b - sqrt(delta)) / (2 * a);
-    // Choose the smallest one
-    if (t_1 > 0 && t_1 < t) t = t_1;
-    if (t_2 > 0 && t_2 < t) t = t_2;
-    if (t == INFINITY) {
-      return hit;
-    }
-
-    // Possible point of intersection on the side of the cone
-    glm::vec4 candidate = localRayOrigin + (localRayDirection * t);
-    // Setting homogenous coordinate for candidate point
-    candidate[3] = 1.0f;
-
-    // Check that the possible intersection point on the side of the cone is
-    // legal
-    if (candidate.y > 1 || candidate.y < 0) {
-      return hit;
-    }
-
-    float distanceSide = glm::distance(
-        glm::vec3(this->transformationMatrix * candidate), ray.origin);
-    // If the plane/base wasn't hit, set distance to infinity
-    float distanceBase = hit.hit ? hit.distance : INFINITY;
-
-    // If the cone's base was hit, check what part of the cone was hit first
-    if (distanceBase < distanceSide) {
-      return hit;
-    }
-    // Otherwise, the side was hit first
-    // Transform coordinates to global
-    hit.intersection = glm::vec3(this->transformationMatrix * candidate);
-    hit.distance = glm::distance(hit.intersection, ray.origin);
-
-    // Compute the normal in the local coordinates using the gradient
-    glm::vec3 localNormal = glm::normalize(
-        glm::vec3(2 * candidate.x, -2 * candidate.y, 2 * candidate.z));
-
-    // Transforming the normal into global coordinates
-    hit.normal = glm::normalize(
-        glm::vec3(this->normalMatrix * glm::vec4(localNormal, 0.0f)));
-
-    /* Our first guess to compute the normal using a 180° rotation around the
-    axis (swapping the direction only at the end).
-     * It isn't completely correct (cf shadow of laid down cone)
-    glm::mat4 rot_n = glm::rotate(glm::mat4(1.0f), (float)glm::radians(180.0f),
-    glm::vec3(0.0f, 1.0f, 0.0f)); hit.normal = glm::normalize(rot_n *
-    (glm::normalize(this->inverseTransformationMatrix *
-    glm::vec4(hit.intersection, 1.0f)))); hit.normal =
-    -glm::normalize(glm::vec3(glm::vec4(hit.normal, 0.0f) *
-    this->normalMatrix));
-    */
-    hit.hit = true;
-    return hit;
-  }
-};
-
 // Assignment 3: Triangle class
 class Triangle : public Object {
  private:
@@ -402,7 +165,6 @@ class Triangle : public Object {
   glm::vec3 b;  // p2
   glm::vec3 c;  // p3
   glm::vec3 normal;
-  std::vector<glm::vec3> smoothNormals;  // vector of normals for smooth shading
 
  public:
   Triangle(glm::vec3 a, glm::vec3 b, glm::vec3 c, Material material)
@@ -412,25 +174,16 @@ class Triangle : public Object {
     this->material = material;
   }
 
-  Triangle(glm::vec3 a, glm::vec3 b, glm::vec3 c,
-           std::vector<glm::vec3> smoothNormals)
-      : a(a), b(b), c(c), smoothNormals(smoothNormals) {
-    this->normal = glm::cross((b - a), (c - a));
-    this->plane = new Plane(a, this->normal);
-  }
-
-  Triangle(glm::vec3 a, glm::vec3 b, glm::vec3 c, Material material,
-           std::vector<glm::vec3> smoothNormals)
-      : a(a), b(b), c(c), smoothNormals(smoothNormals) {
-    this->normal = glm::cross((b - a), (c - a));
-    this->plane = new Plane(a, this->normal);
-    this->material = material;
-  }
-
   Triangle(glm::vec3 a, glm::vec3 b, glm::vec3 c) : a(a), b(b), c(c) {
     this->normal = glm::cross((b - a), (c - a));
     this->plane = new Plane(a, this->normal);
   }
+
+  glm::vec3 getA() { return this->a; }
+
+  glm::vec3 getB() { return this->b; }
+
+  glm::vec3 getC() { return this->c; }
 
   /* override the setTransformation method so that we can update
    * the a, b, c verteces, the normal and recompute the plane
@@ -448,12 +201,6 @@ class Triangle : public Object {
     this->c = glm::vec3(this->transformationMatrix * glm::vec4(this->c, 1.0f));
     this->normal = glm::cross((this->b - this->a), (this->c - this->a));
     this->plane = new Plane(this->a, this->normal);
-
-    // Transform all the smooth normals if they are present
-    for (int i = 0; i < this->smoothNormals.size(); i++) {
-      this->smoothNormals[i] = glm::vec3(
-          this->normalMatrix * glm::vec4(this->smoothNormals[i], 0.0f));
-    }
   }
 
   Hit intersect(Ray ray) {
@@ -490,6 +237,7 @@ class Triangle : public Object {
       float dot3 = glm::dot(this->normal, n3);
       float lambda3 = dot3 / glm::pow(glm::length(this->normal), 2);
 
+      // TODO: Fix this
       if ((lambda1 >= 0 && lambda2 >= 0 && lambda3 >= 0) &&
           (lambda1 + lambda2 + lambda3) <= 1.0 + 1e-6) {
         if (this->smoothNormals.size() > 0) {
@@ -519,8 +267,6 @@ class Mesh : public Object {
   std::vector<Triangle *> triangles;
   // File path to the obj file
   std::string objPath;
-
-  bool smoothShading = false;
 
  public:
   Mesh(std::string objPath, Material material) : objPath(objPath) {
@@ -555,8 +301,6 @@ class Mesh : public Object {
     }
 
     std::vector<glm::vec3> vertices;
-    // Bonus: "Deactivating" smooth shading
-    // std::vector<glm::vec3> normals;
     std::vector<Face> faces;
 
     std::string line;
@@ -573,10 +317,6 @@ class Mesh : public Object {
         glm::vec3 vertex;
         ss >> vertex.x >> vertex.y >> vertex.z;
         vertices.push_back(vertex);
-      } else if (type == "vn") {
-        glm::vec3 normal;
-        ss >> normal.x >> normal.y >> normal.z;
-        normals.push_back(normal);
       } else if (type == "f") {
         /*
           Face composed by v/vt/vn
@@ -601,22 +341,8 @@ class Mesh : public Object {
           // So we just read the entire vertex
           std::getline(vss, index, '/');
           face.vertices.push_back(std::stoi(index) - 1);
-          // Check if the line is in the first format
-          // We do this by checking if the next character is a '/'
-          if (vss.peek() == '/') {
-            // If yes, we ignore the first '/' as we ignore the texture index
-            vss.ignore();
-            // Then, we read the normal index and add it to the list
-            std::getline(vss, index, '/');
-            face.normals.push_back(std::stoi(index) - 1);
-          }
         }
         faces.push_back(face);
-      } else if (type == "s") {
-        // Smooth shading option
-        std::string option;
-        ss >> option;
-        this->smoothShading = (option == "1");
       }
     }
 
@@ -627,15 +353,7 @@ class Mesh : public Object {
       glm::vec3 c = vertices[faces[i].vertices[2]];
 
       Triangle *triangle;
-      if (smoothShading && faces[i].normals.size() == 3) {
-        std::vector<glm::vec3> smoothNormals;
-        for (int j = 0; j < 3; j++) {
-          smoothNormals.push_back(normals[faces[i].normals[j]]);
-        }
-        triangle = new Triangle(a, b, c, this->material, smoothNormals);
-      } else {
-        triangle = new Triangle(a, b, c, this->material);
-      }
+      triangle = new Triangle(a, b, c, this->material);
       triangle->setTransformation(this->transformationMatrix);
       this->triangles.push_back(triangle);
     }
@@ -644,7 +362,6 @@ class Mesh : public Object {
 
     std::cout << "Number of triangles: " << this->triangles.size() << std::endl;
     std::cout << "Number of vertices: " << vertices.size() << std::endl;
-    std::cout << "Number of normals: " << normals.size() << std::endl;
   }
 
   Hit intersect(Ray ray) {
@@ -672,6 +389,115 @@ class Mesh : public Object {
   }
 };
 
+/* Bonus assignment: Class representing a bounding box */
+class Box : public Object {
+ private:
+  // box_min contains x.min, y.min, z.min
+  glm::vec3 box_min;
+  glm::vec3 box_max;
+  Mesh *mesh;
+
+ public:
+  /**
+   * Creates a bounding box that surrounds a mesh.
+   * @param mesh
+   */
+  Box(Mesh *mesh) : mesh(mesh) {
+    float tempMinX, tempMinY, tempMinZ = -INFINITY;
+    float tempMaxX, tempMaxY, tempMaxZ = INFINITY;
+
+    // Compute the corresponding bounding box
+    for (auto triangle : this->mesh->getTriangles()) {
+      /* Compute the current min */
+      float minX = std::min(std::min(triangle->getA().x, triangle->getB().x),
+                            triangle->getC().x);
+      tempMinX = minX < tempMinX ? minX : tempMinX;
+
+      float minY = std::min(std::min(triangle->getA().y, triangle->getB().y),
+                            triangle->getC().y);
+      tempMinY = minY < tempMinY ? minY : tempMinY;
+
+      float minZ = std::min(std::min(triangle->getA().z, triangle->getB().z),
+                            triangle->getC().z);
+      tempMinZ = minZ < tempMinZ ? minY : tempMinZ;
+
+      /* Compute the current max */
+      float maxX = std::max(std::max(triangle->getA().x, triangle->getB().x),
+                            triangle->getC().x);
+      tempMaxX = maxX < tempMaxX ? maxX : tempMaxX;
+
+      float maxY = std::max(std::max(triangle->getA().y, triangle->getB().y),
+                            triangle->getC().y);
+      tempMaxY = maxY < tempMaxY ? maxY : tempMaxY;
+
+      float maxZ = std::max(std::max(triangle->getA().z, triangle->getB().z),
+                            triangle->getC().z);
+      tempMaxZ = maxZ < tempMinZ ? maxY : tempMaxZ;
+    }
+    /* Set the min coordinates */
+    box_min.x = tempMinX < box_min.x ? tempMinX : box_min.x;
+    box_min.y = tempMinY < box_min.y ? tempMinY : box_min.y;
+    box_min.z = tempMinZ < box_min.z ? tempMinZ : box_min.z;
+    /* Set the max coordinates */
+    box_max.x = tempMaxX < box_max.x ? tempMaxX : box_max.x;
+    box_max.y = tempMaxY < box_max.y ? tempMaxY : box_max.y;
+    box_max.z = tempMaxZ < box_max.z ? tempMaxZ : box_max.z;
+  }
+
+  /**
+   * The function checks if we intersect the bounding box or not. If we did,
+   * then we run the intersect with the mesh contained inside of the box.
+   * @param ray
+   * @return Hit
+   */
+  Hit intersect(Ray ray) {
+    Hit hit;
+    hit.hit = false;
+    hit.intersection = glm::vec3(0);
+    hit.distance = 0;
+    hit.normal = glm::vec3(0);
+    hit.object = this;
+    /* Compute the t_values:
+     * TODO: Correct this definition
+     * t_min_i is the point on the t ray which first intersects the bounding
+     * box's side parallel to the i axis
+     */
+    // TODO: Check if this is the most optimized way to do it
+    // We will always keep the biggest t_min value and the smallest t_max values
+    float t_min = -INFINITY;
+    float t_max = INFINITY;
+
+    float t_1;
+    float t_2;
+
+    float entry;
+    float exit;
+    // Iterate on all axis
+    for (int i = 0; i < 3; ++i) {
+      if (ray.direction[i] != 0) {
+        t_1 = (box_min[i] - ray.origin[i] / ray.direction[i]);
+        t_2 = (box_max[i] - ray.origin[i] / ray.direction[i]);
+        entry = std::min(t_1, t_2);
+        exit = std::max(t_1, t_2);
+
+        // TODO: Check efficiency ? wrt to if statement or ternary
+        t_min = std::max(entry, t_min);
+        t_max = std::min(exit, t_max);
+
+      } else {
+        if (ray.origin[i] < box_min[i] || ray.origin[i] > box_max[i]) {
+          return hit;
+        }
+      }
+    }
+    if (t_min > t_max || t_max < 0) {
+      return hit;
+    }
+    // If the bounding box was hit, run the intersect function on the mesh
+    return this->mesh->intersect(ray);
+  }
+};
+
 /**
  Light class
  */
@@ -686,7 +512,7 @@ class Light {
 };
 
 vector<Light *> lights;  ///< A list of lights in the scene
-glm::vec3 ambient_light(0.02, 0.02, 0.02);
+glm::vec3 ambient_light(0.02f, 0.02f, 0.02f);
 
 /** Function for computing color of an object according to the Phong Model
  @param point A point belonging to the object for which the color is computed
@@ -705,6 +531,15 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
     // light direction
     glm::vec3 light_direction = glm::normalize(lights[i]->position - point);
 
+    // Assignment 4: Check if intersects to create shades
+    Ray ray_shade(point + (light_direction * 0.001f), light_direction);
+
+    // If there is any object between the intersection point and the light, we
+    // do not contribute the color
+    if (intersects_any_object(ray_shade, lights[i]->position)) {
+      continue;
+    }
+
     // Angle between the normal and the light direction
     // No need to check negative as we clamp the value
     float phi = glm::clamp(glm::dot(normal, light_direction), 0.0f, 1.0f);
@@ -721,11 +556,6 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
     glm::vec3 specular =
         material.specular * glm::vec3(pow(RdotV, material.shininess));
 
-    /*  ---- Exercise 3-----
-
-     Include light attenuation due to the distance to the light source.
-
-    */
     /* Assignment 2: Distance attenuation*/
     float att_d = 1;
 
@@ -745,6 +575,24 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
   // The final color has to be clamped so the values do not go beyond 0 and 1.
   color = glm::clamp(color, glm::vec3(0.0), glm::vec3(1.0));
   return color;
+}
+// Assignment 4
+/**
+ * Checks for intersection with any object
+ * @param ray
+ * @return true if there was an intersection, false otherwise
+ */
+bool intersects_any_object(Ray ray, glm::vec3 limit_point) {
+  // For each object in the scene, we run the intersect function
+  // If the hit is positive, we return true
+  for (int i = 0; i < objects.size(); i++) {
+    Hit hit = objects[i]->intersect(ray);
+    if (hit.hit == true &&
+        (hit.distance < glm::distance(ray.origin, limit_point))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -785,46 +633,22 @@ glm::vec3 trace_ray(Ray ray) {
   }
   return color;
 }
-
+// scan all triangles of each mesh and keep the extreme values to compute
+// bounding box
+/* Notes:
+ * - function to create bounding box
+ * - when tracing ray, check if it hits bounding box of object. If yes, then try
+ * to intersect with the object (s) in that box. Otherwise, skip to next
+ * bounding box
+ * */
 /**
  Function defining the scene
  */
 void sceneDefinition() {
-  Material red_specular;
-  red_specular.diffuse = glm::vec3(0.9f, 0.1f, 0.1f);
-  red_specular.ambient = glm::vec3(0.1f, 0.03f, 0.03f);
-  red_specular.specular = glm::vec3(0.5f);
-  red_specular.shininess = 10.0f;
-
-  Material blue_dark;
-  blue_dark.diffuse = glm::vec3(0.1f, 0.1f, 0.8f);
-  blue_dark.ambient = glm::vec3(0.01f, 0.01f, 0.9f);
-  blue_dark.specular = glm::vec3(0.6f);
-  blue_dark.shininess = 100.0f;
-
-  Material green;
-  green.diffuse = glm::vec3(0.2f, 0.9f, 0.2f);
-  green.ambient = glm::vec3(0.01f, 0.3f, 0.01f);
-  green.specular = glm::vec3(0.0f);
-  green.shininess = 0.0f;
-
-  /* Assignment 2: Yellow material for the highly specular cone*/
-  Material yellow;
-  yellow.diffuse = glm::vec3(0.2f, 0.2f, 0.0f);
-  yellow.ambient = glm::vec3(0.003f, 0.003f, 0.0f);
-  yellow.specular = glm::vec3(1.0);
-  yellow.shininess = 100.0f;
-
-  /* Add spheres */
-  // objects.push_back(new Sphere(1.0f, glm::vec3(2, -2, 6), green));
-
-  // objects.push_back(new Sphere(0.5, glm::vec3(-1, -2.5, 6), red_specular));
-  // objects.push_back(new Sphere(1.0f, glm::vec3(1, -2, 8), blue_dark));
-
   /* Define lights */
-  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(0.6)));
-  lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(0.2)));
-  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.1)));
+  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(1.0f)));
+  lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(0.1f)));
+  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.4f)));
 
   /* Assignment 2: Planes */
   // Points at extremities of the box (top right and back left)
@@ -836,78 +660,34 @@ void sceneDefinition() {
   glm::vec3 y_norm = glm::vec3(0, 1, 0);
   glm::vec3 z_norm = glm::vec3(0, 0, 1);
 
+  /* Add walls */
   // Left wall
-  objects.push_back(new Plane(back_left_p, x_norm, blue_dark));
+  objects.push_back(new Plane(back_left_p, x_norm));
   // Bottom wall
-  objects.push_back(new Plane(back_left_p, y_norm, red_specular));
-  // Back wall
-  // objects.push_back(new Plane(back_left_p, z_norm, blue_dark));
-
+  objects.push_back(new Plane(back_left_p, y_norm));
   // Right wall
-  objects.push_back(new Plane(top_right_p, x_norm, blue_dark));
-  // Above/top wall
-  objects.push_back(new Plane(top_right_p, y_norm, green));
+  objects.push_back(new Plane(top_right_p, x_norm));
   // Front wall
-  objects.push_back(new Plane(top_right_p, z_norm, green));
+  objects.push_back(new Plane(top_right_p, z_norm));
 
-  /* Assignment 2: Adding cones */
-
-  /* Transformation matrices for the yellow cone */
-  glm::mat4 translation_yellow_cone = glm::translate(glm::vec3(5, 9, 14));
-  glm::mat4 rotation_yellow_cone =
-      glm::rotate(glm::mat4(1.0f), (float)glm::radians(180.0f),
-                  glm::vec3(0.0f, 0.0f, 1.0f));
-  glm::mat4 scale_yellow_cone = glm::scale(glm::vec3(3.0f, 12.0f, 3.0f));
-  glm::mat4 yellowConeTraMat =
-      translation_yellow_cone * rotation_yellow_cone * scale_yellow_cone;
-
-  // Define yellow cone
-  Cone *yellow_cone = new Cone(yellow);
-  // Set the transformation matrix for the yellow cone
-  yellow_cone->setTransformation(yellowConeTraMat);
-
-  /* Transformation matrices for the green cone */
-  glm::mat4 translation_green_cone = glm::translate(glm::vec3(6, -3, 7));
-  /* To compute the right angle to lay down the cone on the ground, we should
-   * take arctan(b/|a|), here it's arctan(3) */
-  glm::mat4 rotation_green_cone = glm::rotate(
-      glm::mat4(1.0f), (float)glm::atan(3), glm::vec3(0.0f, 0.0f, 1.0f));
-  glm::mat4 scale_green_cone = glm::scale(glm::vec3(1.0f, 3.0f, 1.0f));
-  glm::mat4 greenConeTraMat =
-      translation_green_cone * rotation_green_cone * scale_green_cone;
-
-  Cone *green_cone = new Cone(green);
-  green_cone->setTransformation(greenConeTraMat);
-
-  /* Push the cones */
-  // objects.push_back(yellow_cone);
-  // objects.push_back(green_cone);
-
-  // Assignment 3: Triangles
-  glm::vec3 a = glm::vec3(-2.0, 0.0, 2.0);
-  glm::vec3 b = glm::vec3(0.5, 2.0, 1.0);
-  glm::vec3 c = glm::vec3(2.0, 0.0, 0.0);
-
-  glm::mat4 trianTrans = glm::translate(glm::vec3(1.0f, -1.0f, 5.0f));
-  glm::mat4 trianRot =
-      glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
-  glm::mat4 trianScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
-
+  /* Add meshes */
   glm::mat4 armadilloTrans = glm::translate(glm::vec3(-4.0f, -3.0f, 10.0f));
   glm::mat4 armadilloRot =
       glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 armadilloScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 armadilloTraMat = armadilloTrans * armadilloRot * armadilloScale;
   Mesh *armadillo = new Mesh("meshes/armadillo.obj", armadilloTraMat);
-  armadillo->addMeshToScene();
-  objects.push_back(armadillo);
+  // armadillo->addMeshToScene();
+  // objects.push_back(armadillo);
+  Box *armadillo_bb = new Box(armadillo);
+  objects.push_back(armadillo_bb);
 
   glm::mat4 bunnyTrans = glm::translate(glm::vec3(0.0f, -3.0f, 8.0f));
   glm::mat4 bunnyRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
                                    glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 bunnyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 bunnyTraMat = bunnyTrans * bunnyRot * bunnyScale;
-  Mesh *bunny = new Mesh("meshes/bunny_with_normals.obj", bunnyTraMat);
+  Mesh *bunny = new Mesh("meshes/bunny.obj", bunnyTraMat);
   bunny->addMeshToScene();
   objects.push_back(bunny);
 
@@ -916,18 +696,9 @@ void sceneDefinition() {
                                   glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 lucyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 lucyTraMat = lucyTrans * lucyRot * lucyScale;
-  Mesh *lucy = new Mesh("meshes/lucy_with_normals.obj", lucyTraMat);
+  Mesh *lucy = new Mesh("meshes/lucy.obj", lucyTraMat);
   lucy->addMeshToScene();
   objects.push_back(lucy);
-
-  glm::mat4 yunaTrans = glm::translate(glm::vec3(0.0f, 0.0f, 12.0f));
-  glm::mat4 yunaRot = glm::rotate(glm::mat4(1.0f), glm::radians(-15.0f),
-                                  glm::vec3(0.0f, 1.0f, 0.0f));
-  glm::mat4 yunaScale = glm::scale(glm::vec3(0.6f, 0.6f, 0.6f));
-  glm::mat4 yunaTraMat = yunaTrans * yunaRot * yunaScale;
-  Mesh *yuna = new Mesh("meshes/yuna_simplified_smooth.obj", yunaTraMat);
-  yuna->addMeshToScene();
-  objects.push_back(yuna);
 
   cout << "Number of objects: " << objects.size() << endl;
 }
@@ -960,9 +731,9 @@ glm::vec3 toneMapping(glm::vec3 intensity) {
 int main(int argc, const char *argv[]) {
   clock_t t = clock();  // variable for keeping the time of the rendering
 
-  int width = 1024;  // width of the image
-  int height = 768;  // height of the image
-  float fov = 90;    // field of view
+  int width = 2048;   // width of the image
+  int height = 1536;  // height of the image
+  float fov = 90;     // field of view
 
   sceneDefinition();  // Let's define a scene
 
@@ -983,17 +754,16 @@ int main(int argc, const char *argv[]) {
       float dz = 1;
 
       // Definition of the ray
-      glm::vec3 origin(0, 0, -5);
+      glm::vec3 origin(0, 0, 0);
       glm::vec3 direction(dx, dy, dz);
       direction = glm::normalize(direction);
 
       Ray ray(origin, direction);  // ray traversal
-
-      // image.setPixel(i, j, trace_ray(ray));
       image.setPixel(i, j,
                      glm::clamp(toneMapping(trace_ray(ray)), glm::vec3(0.0),
                                 glm::vec3(1.0)));
 
+      // TODO: Remove when testing performance
       // Print the progress of the rendering
       if (j % 10000 == 0) {
         float percentage = (float)(i * height + j) / (width * height) * 100;

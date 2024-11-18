@@ -18,6 +18,10 @@ struct Material {
   glm::vec3 diffuse = glm::vec3(1.0);
   glm::vec3 specular = glm::vec3(0.0);
   float shininess = 0.0;
+  // Assignment 4
+  float reflection = 0.0f;
+  bool refracts_light = false;
+  float refraction_index = 0.0f;
 };
 
 #endif /* Material_h */
