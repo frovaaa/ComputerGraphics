@@ -243,7 +243,6 @@ class Triangle : public Object {
           (lambda1 + lambda2 + lambda3) <= 1.0 + 1e-6) {
         hit.normal = glm::normalize(this->normal);
         return hit;
-
       } else {
         hit.hit = false;
       }
@@ -492,6 +491,7 @@ class Box : public Object {
     if (t_min > t_max || t_max < 0) {
       return hit;
     }
+    cout << "Bounding box hit" << endl;
     // If the bounding box was hit, run the intersect function on the mesh
     return this->mesh->intersect(ray);
   }
@@ -767,10 +767,10 @@ int main(int argc, const char *argv[]) {
 
       // TODO: Remove when testing performance
       // Print the progress of the rendering
-      if (j % 10000 == 0) {
-        float percentage = (float)(i * height + j) / (width * height) * 100;
-        cout << "Progress: " << percentage << "%" << endl;
-      }
+      // if (j % 10000 == 0) {
+      //   float percentage = (float)(i * height + j) / (width * height) * 100;
+      //   cout << "Progress: " << percentage << "%" << endl;
+      // }
     }
 
   t = clock() - t;
