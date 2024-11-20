@@ -23,6 +23,7 @@ using namespace std;
 bool equalFloats(float a, float b, float EPSILON) {
   return (std::fabs(a - b) < EPSILON);
 }
+
 class Box;
 
 /**
@@ -240,14 +241,9 @@ class Triangle : public Object {
       // TODO: Fix this
       if ((lambda1 >= 0 && lambda2 >= 0 && lambda3 >= 0) &&
           (lambda1 + lambda2 + lambda3) <= 1.0 + 1e-6) {
-        if (this->smoothNormals.size() > 0) {
-          hit.normal = glm::normalize(lambda1 * this->smoothNormals[0] +
-                                      lambda2 * this->smoothNormals[1] +
-                                      lambda3 * this->smoothNormals[2]);
-        } else {
-          hit.normal = glm::normalize(this->normal);
-        }
+        hit.normal = glm::normalize(this->normal);
         return hit;
+
       } else {
         hit.hit = false;
       }
@@ -301,22 +297,28 @@ class Mesh : public Object {
     }
 
     std::vector<glm::vec3> vertices;
-    std::vector<Face> faces;
+    std::vector<glm::vec3> normals;
+    std::vector<glm::vec3> faces;
 
     std::string line;
     // Read the file line by line
     while (std::getline(file, line)) {
-      // Create a string stream from the line
+      // Craete a string stream from the line
       std::stringstream ss(line);
       std::string type;
       // Read the first word of the line
       ss >> type;
 
       // Check the type of the line
+      // Could be a vertex, a normal, face or the smooth shading option
       if (type == "v") {
         glm::vec3 vertex;
         ss >> vertex.x >> vertex.y >> vertex.z;
         vertices.push_back(vertex);
+      } else if (type == "vn") {
+        glm::vec3 normal;
+        ss >> normal.x >> normal.y >> normal.z;
+        normals.push_back(normal);
       } else if (type == "f") {
         /*
           Face composed by v/vt/vn
@@ -325,22 +327,15 @@ class Mesh : public Object {
           Read the three vertices of the face
           and store them in the faces vector
           The index of the vertices is 1-based so we need to subtract 1
-
-          The face line could also be just f v v v
-          So we need to check if the line is in the first format
         */
-        Face face;
+        glm::vec3 face;
         std::string vertex;
-        // Read space separated vertices
-        while (ss >> vertex) {
-          // Creates a string stream from the vertex string
+        for (int i = 0; i < 3; i++) {
+          ss >> vertex;
           std::stringstream vss(vertex);
           std::string index;
-          // Reads the vertex index before the first '/'
-          // If there is no '/' it means that the line is in the second format
-          // So we just read the entire vertex
           std::getline(vss, index, '/');
-          face.vertices.push_back(std::stoi(index) - 1);
+          face[i] = std::stoi(index);
         }
         faces.push_back(face);
       }
@@ -348,16 +343,17 @@ class Mesh : public Object {
 
     // Create the triangles from the vertices and faces
     for (int i = 0; i < faces.size(); i++) {
-      glm::vec3 a = vertices[faces[i].vertices[0]];
-      glm::vec3 b = vertices[faces[i].vertices[1]];
-      glm::vec3 c = vertices[faces[i].vertices[2]];
+      glm::vec3 a = vertices[faces[i].x - 1];
+      glm::vec3 b = vertices[faces[i].y - 1];
+      glm::vec3 c = vertices[faces[i].z - 1];
 
-      Triangle *triangle;
-      triangle = new Triangle(a, b, c, this->material);
+      Triangle *triangle = new Triangle(a, b, c, this->material);
       triangle->setTransformation(this->transformationMatrix);
+
       this->triangles.push_back(triangle);
     }
 
+    // In the end we close the file
     file.close();
 
     std::cout << "Number of triangles: " << this->triangles.size() << std::endl;
@@ -377,6 +373,9 @@ class Mesh : public Object {
       if (triangleHit.hit &&
           (!hit.hit || triangleHit.distance < hit.distance)) {
         hit = triangleHit;
+        if (hit.hit) {
+          std::cout << "triangle was hit" << std::endl;
+        }
       }
     }
     return hit;
@@ -458,7 +457,7 @@ class Box : public Object {
     hit.normal = glm::vec3(0);
     hit.object = this;
     /* Compute the t_values:
-     * TODO: Correct this definition
+     * TODO: Correct this definition comment
      * t_min_i is the point on the t ray which first intersects the bounding
      * box's side parallel to the i axis
      */
@@ -680,7 +679,7 @@ void sceneDefinition() {
   // armadillo->addMeshToScene();
   // objects.push_back(armadillo);
   Box *armadillo_bb = new Box(armadillo);
-  objects.push_back(armadillo_bb);
+  // objects.push_back(armadillo_bb);
 
   glm::mat4 bunnyTrans = glm::translate(glm::vec3(0.0f, -3.0f, 8.0f));
   glm::mat4 bunnyRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
@@ -688,8 +687,10 @@ void sceneDefinition() {
   glm::mat4 bunnyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 bunnyTraMat = bunnyTrans * bunnyRot * bunnyScale;
   Mesh *bunny = new Mesh("meshes/bunny.obj", bunnyTraMat);
-  bunny->addMeshToScene();
-  objects.push_back(bunny);
+  // bunny->addMeshToScene();
+  // objects.push_back(bunny);
+  Box *bunnybb = new Box(bunny);
+  objects.push_back(bunnybb);
 
   glm::mat4 lucyTrans = glm::translate(glm::vec3(4.0f, -3.0f, 10.0f));
   glm::mat4 lucyRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
@@ -697,9 +698,10 @@ void sceneDefinition() {
   glm::mat4 lucyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 lucyTraMat = lucyTrans * lucyRot * lucyScale;
   Mesh *lucy = new Mesh("meshes/lucy.obj", lucyTraMat);
-  lucy->addMeshToScene();
-  objects.push_back(lucy);
-
+  // lucy->addMeshToScene();
+  // objects.push_back(lucy);
+  Box *lucybb = new Box(lucy);
+  // objects.push_back(lucybb);
   cout << "Number of objects: " << objects.size() << endl;
 }
 
