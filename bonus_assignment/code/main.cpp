@@ -372,9 +372,6 @@ class Mesh : public Object {
       if (triangleHit.hit &&
           (!hit.hit || triangleHit.distance < hit.distance)) {
         hit = triangleHit;
-        if (hit.hit) {
-          std::cout << "triangle was hit" << std::endl;
-        }
       }
     }
     return hit;
@@ -422,24 +419,24 @@ class Box : public Object {
       /* Compute the current max */
       float maxX = std::max(std::max(triangle->getA().x, triangle->getB().x),
                             triangle->getC().x);
-      tempMaxX = maxX < tempMaxX ? maxX : tempMaxX;
+      tempMaxX = maxX > tempMaxX ? maxX : tempMaxX;
 
       float maxY = std::max(std::max(triangle->getA().y, triangle->getB().y),
                             triangle->getC().y);
-      tempMaxY = maxY < tempMaxY ? maxY : tempMaxY;
+      tempMaxY = maxY > tempMaxY ? maxY : tempMaxY;
 
       float maxZ = std::max(std::max(triangle->getA().z, triangle->getB().z),
                             triangle->getC().z);
-      tempMaxZ = maxZ < tempMinZ ? maxY : tempMaxZ;
+      tempMaxZ = maxZ > tempMinZ ? maxY : tempMaxZ;
     }
     /* Set the min coordinates */
     box_min.x = tempMinX < box_min.x ? tempMinX : box_min.x;
     box_min.y = tempMinY < box_min.y ? tempMinY : box_min.y;
     box_min.z = tempMinZ < box_min.z ? tempMinZ : box_min.z;
     /* Set the max coordinates */
-    box_max.x = tempMaxX < box_max.x ? tempMaxX : box_max.x;
-    box_max.y = tempMaxY < box_max.y ? tempMaxY : box_max.y;
-    box_max.z = tempMaxZ < box_max.z ? tempMaxZ : box_max.z;
+    box_max.x = tempMaxX > box_max.x ? tempMaxX : box_max.x;
+    box_max.y = tempMaxY > box_max.y ? tempMaxY : box_max.y;
+    box_max.z = tempMaxZ > box_max.z ? tempMaxZ : box_max.z;
   }
 
   /**
@@ -491,7 +488,6 @@ class Box : public Object {
     if (t_min > t_max || t_max < 0) {
       return hit;
     }
-    cout << "Bounding box hit" << endl;
     // If the bounding box was hit, run the intersect function on the mesh
     return this->mesh->intersect(ray);
   }
@@ -767,10 +763,10 @@ int main(int argc, const char *argv[]) {
 
       // TODO: Remove when testing performance
       // Print the progress of the rendering
-      // if (j % 10000 == 0) {
-      //   float percentage = (float)(i * height + j) / (width * height) * 100;
-      //   cout << "Progress: " << percentage << "%" << endl;
-      // }
+      if (j % 10000 == 0) {
+        float percentage = (float)(i * height + j) / (width * height) * 100;
+        cout << "Progress: " << percentage << "%" << endl;
+      }
     }
 
   t = clock() - t;
