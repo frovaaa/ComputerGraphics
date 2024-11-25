@@ -132,7 +132,7 @@ class Plane : public Object {
     float NdotD = glm::dot(this->normal, ray.direction);
     // If the dotproduct is 0, the ray direction is parallel to the plane so
     // there is no intersection
-    if (equalFloats(0, NdotD, 0.001)) {
+    if (equalFloats(0, NdotD, 0.0000001)) {
       return hit;
     } else {
       float NdotP = glm::dot(this->normal, this->point);
