@@ -186,6 +186,9 @@ class Triangle : public Object {
 
   glm::vec3 getC() { return this->c; }
 
+  // Bonus assignment
+  glm::vec3 getCentroid() { return (a + b + c) / 3.0f; }
+
   /* override the setTransformation method so that we can update
    * the a, b, c verteces, the normal and recompute the plane
    */
@@ -256,31 +259,299 @@ struct Face {
   std::vector<int> normals;
 };
 
+/* Bonus assignment: Class representing a bounding box, used in the kdtree */
+class Box {
+ private:
+  // box_min contains x.min, y.min, z.min
+  glm::vec3 box_min;
+  glm::vec3 box_max;
+
+ public:
+  Box(glm::vec3 box_min, glm::vec3 box_max)
+      : box_min(box_min), box_max(box_max) {}
+
+  /**
+   * The function checks if we intersect the bounding box or not. If we did,
+   * then we run the intersect with the mesh contained inside of the box.
+   * @param ray
+   * @return Hit
+   */
+  bool intersect(Ray ray) {
+    /* Compute the t_values:
+     * TODO: Correct this definition comment
+     * t_min_i is the point on the t ray which first intersects the bounding
+     * box's side parallel to the i axis
+     */
+    // TODO: Check if this is the most optimized way to do it
+    // We will always keep the biggest t_min value and the smallest t_max values
+    float t_min = -INFINITY;
+    float t_max = INFINITY;
+
+    float t_1;
+    float t_2;
+
+    float entry;
+    float exit;
+    // Iterate on all axis
+    for (int i = 0; i < 3; ++i) {
+      if (ray.direction[i] != 0) {
+        t_1 = ((box_min[i] - ray.origin[i]) / ray.direction[i]);
+        t_2 = ((box_max[i] - ray.origin[i]) / ray.direction[i]);
+        entry = std::min(t_1, t_2);
+        exit = std::max(t_1, t_2);
+
+        // TODO: Check efficiency ? wrt to if statement or ternary
+        t_min = std::max(entry, t_min);
+        t_max = std::min(exit, t_max);
+
+      } else {
+        if (ray.origin[i] < box_min[i] || ray.origin[i] > box_max[i]) {
+          return false;
+        }
+      }
+    }
+    if (t_min > t_max || t_max < 0) {
+      return false;
+    }
+    // If the bounding box was hit, run the intersect function on the mesh
+    return true;
+  }
+};
+
+class KDTreeNode {
+ public:
+  // Axis along which the node splits the space
+  // x -> 0, y -> 1, z -> 2
+  // if it is a leaf node, axis is -1
+  int axis;
+
+  // Splitting position
+  float split;
+
+  // Bounding box of the node
+  Box *boundingBox;
+
+  // Left and right children
+  KDTreeNode *left;
+  KDTreeNode *right;
+
+  // List of triangles in the leaf node
+  std::vector<Triangle *> triangles;
+
+  // TODO: Fix this, we can use a union to save memory but right now it gives
+  // errors
+  // We can use a union to save memory as we will only use one of the two
+  // fields union {
+  //   // Internal node
+  //   struct {
+  //     KDTreeNode *left;
+  //     KDTreeNode *right;
+  //   };
+  //   // Leaf node
+  //   // TODO: Could be a pointer to nextTriangle instead of a vector
+  //   std::vector<Triangle *> triangles;
+  // };
+
+  // Constructor for internal node
+  KDTreeNode(int axis, float split, KDTreeNode *left, KDTreeNode *right,
+             Box *boundingBox)
+      : axis(axis),
+        split(split),
+        left(left),
+        right(right),
+        boundingBox(boundingBox) {}
+
+  // Constructor for leaf node
+  KDTreeNode(std::vector<Triangle *> triangles, Box *boundingBox)
+      : axis(-1), split(0), triangles(triangles), boundingBox(boundingBox) {}
+
+  // Destructor
+  ~KDTreeNode() {
+    // If it is a leaf node, we delete the triangles
+    if (axis == -1) {
+      // We clear the vector of triangles
+      triangles.clear();
+    } else {
+      // If it is an internal node, we delete the left and right children
+      delete left;
+      delete right;
+    }
+  }
+
+  // Function to check if the node is a leaf node
+  bool isLeaf() { return axis == -1; }
+
+  // Function to check if a ray intersects the bounding box of the node
+  bool intersectsBoundingBox(Ray ray) { return boundingBox->intersect(ray); }
+};
+
+// Function to compute the bounding Box of a given vector of triangles
+// using the minimum and maximum points of the triangles
+Box *computeBoundingBox(std::vector<Triangle *> triangles) {
+  glm::vec3 box_min = glm::vec3(INFINITY);
+  glm::vec3 box_max = glm::vec3(-INFINITY);
+
+  for (auto &triangle : triangles) {
+    box_min = glm::min(box_min,
+                       glm::min(triangle->getA(),
+                                glm::min(triangle->getB(), triangle->getC())));
+    box_max = glm::max(box_max,
+                       glm::max(triangle->getA(),
+                                glm::max(triangle->getB(), triangle->getC())));
+  }
+
+  return new Box(box_min, box_max);
+}
+
+int MAX_TRIANGLES_PER_LEAF = 5;
+KDTreeNode *buildKDTree(std::vector<Triangle *> triangles, int depth = 0) {
+  // If there are no triangles, we return a null pointer
+  if (triangles.empty()) {
+    return nullptr;
+  }
+
+  // If there are less or equal triangles than the maximum number of triangles
+  // per leaf, we create a leaf node
+  if (triangles.size() <= MAX_TRIANGLES_PER_LEAF) {
+    // First we compute the bounding box of the leaf node
+    Box *boundingBox = computeBoundingBox(triangles);
+    // Then we create the leaf node
+    return new KDTreeNode(triangles, boundingBox);
+  } else {
+    // We have an internal node
+
+    // First we find along which axis we will split the space
+    // We just alternate between the three axis on each depth level
+    int axis = depth % 3;
+
+    // Now we need to choose the splitting position
+    // We can use similar techniques as in the BVH described in the slides
+    // We will use the median of centers of mass of the triangles along the axis
+    // as our splitting position
+
+    /*
+      To do this we sort the triangles based on their centroids
+      std::sort takes start and end addresses of the vector
+      and a comparator function (can be a lambda function)
+      The lambda function is defined as folows:
+      [] contains the capture list, which contains the outside variables that
+      are available inside the lambda function
+      then we have the arguments of the lambda function, and finally the body
+    */
+    std::sort(triangles.begin(), triangles.end(),
+              [axis](Triangle *a, Triangle *b) {
+                return a->getCentroid()[axis] < b->getCentroid()[axis];
+              });
+
+    // Now we find the median and split the triangles into two halves
+    size_t median = triangles.size() / 2;
+    std::vector<Triangle *> left(triangles.begin(), triangles.begin() + median);
+    std::vector<Triangle *> right(triangles.begin() + median, triangles.end());
+
+    // We create the bounding box of the internal node
+    Box *boundingBox = computeBoundingBox(triangles);
+
+    // Recursively build the left and right children
+    KDTreeNode *leftChild = buildKDTree(left, depth + 1);
+    KDTreeNode *rightChild = buildKDTree(right, depth + 1);
+
+    // We create the internal node
+    return new KDTreeNode(axis, triangles[median]->getCentroid()[axis],
+                          leftChild, rightChild, boundingBox);
+  }
+}
+
+// Function to check if a ray intersects the KDTree
+Hit intersectKDTree(KDTreeNode *node, Ray ray) {
+  Hit hit;
+  hit.hit = false;
+  hit.intersection = glm::vec3(0);
+  hit.distance = INFINITY;
+  hit.normal = glm::vec3(0);
+  hit.object = nullptr;
+
+  // If the node is nullptr, we do not hit
+  if (node == nullptr) {
+    return hit;
+  }
+
+  // Check if the ray intersects with the node bounding box
+  // if not, we do not hit
+  if (!node->intersectsBoundingBox(ray)) {
+    return hit;
+  }
+
+  // The ray intersects the bounding box
+  // So now we check if it is a leaf node or an internal node
+
+  // If the node is a leaf, we check intersections with the triangles with the
+  // classic closest intersection strategy
+  // TODO: Could be optimized by using BVH for the triangles
+  if (node->isLeaf()) {
+    for (auto &triangle : node->triangles) {
+      Hit triangleHit = triangle->intersect(ray);
+      // If the current hit is false, or the triangleHit distance is smaller
+      // we set the hit to the triangleHit
+      if (triangleHit.hit &&
+          (!hit.hit || triangleHit.distance < hit.distance)) {
+        hit = triangleHit;
+      }
+    }
+    // We then return the hit
+    return hit;
+  } else {
+    // If we are an internal node, we need to check recursively intersection for
+    // the left and right children and return the closest intersection (if any)
+
+    Hit leftHit = intersectKDTree(node->left, ray);
+    Hit rightHit = intersectKDTree(node->right, ray);
+
+    // Check leftHit
+    if (leftHit.hit && (leftHit.distance < hit.distance)) {
+      hit = leftHit;
+    }
+    // Check rightHit
+    if (rightHit.hit && (rightHit.distance < hit.distance)) {
+      hit = rightHit;
+    }
+    // Finally we return the hit
+    return hit;
+  }
+}
+
 class Mesh : public Object {
  private:
   // List of triangles
   std::vector<Triangle *> triangles;
   // File path to the obj file
   std::string objPath;
+  // Bonus assignment: KDTree
+  KDTreeNode *kdTreeRoot;
 
  public:
   Mesh(std::string objPath, Material material) : objPath(objPath) {
     this->material = material;
     this->loadObj();
+    this->kdTreeRoot = buildKDTree(this->triangles);
   }
 
-  Mesh(std::string objPath) : objPath(objPath) { this->loadObj(); }
+  Mesh(std::string objPath) : objPath(objPath) {
+    this->loadObj();
+    this->kdTreeRoot = buildKDTree(this->triangles);
+  }
 
   Mesh(std::string objPath, glm::mat4 transformationMatrix, Material material)
       : objPath(objPath) {
     this->material = material;
     this->transformationMatrix = transformationMatrix;
     this->loadObj();
+    this->kdTreeRoot = buildKDTree(this->triangles);
   }
 
   Mesh(std::string objPath, glm::mat4 transformationMatrix) : objPath(objPath) {
     this->transformationMatrix = transformationMatrix;
     this->loadObj();
+    this->kdTreeRoot = buildKDTree(this->triangles);
   }
 
   vector<Triangle *> getTriangles() { return this->triangles; }
@@ -360,136 +631,15 @@ class Mesh : public Object {
   }
 
   Hit intersect(Ray ray) {
-    Hit hit;
-    hit.hit = false;
-    hit.intersection = glm::vec3(0);
-    hit.distance = 0;
-    hit.normal = glm::vec3(0);
-    hit.object = this;
-
-    for (int i = 0; i < this->triangles.size(); i++) {
-      Hit triangleHit = this->triangles[i]->intersect(ray);
-      if (triangleHit.hit &&
-          (!hit.hit || triangleHit.distance < hit.distance)) {
-        hit = triangleHit;
-      }
-    }
-    return hit;
+    // Bonus assignment: We use the intersectKDTree function to check for
+    // intersection
+    return intersectKDTree(this->kdTreeRoot, ray);
   }
 
   void addMeshToScene() {
     for (int i = 0; i < this->triangles.size(); i++) {
       objects.push_back(this->triangles[i]);
     }
-  }
-};
-
-/* Bonus assignment: Class representing a bounding box */
-class Box : public Object {
- private:
-  // box_min contains x.min, y.min, z.min
-  glm::vec3 box_min;
-  glm::vec3 box_max;
-  Mesh *mesh;
-
- public:
-  /**
-   * Creates a bounding box that surrounds a mesh.
-   * @param mesh
-   */
-  Box(Mesh *mesh) : mesh(mesh) {
-    float tempMinX, tempMinY, tempMinZ = -INFINITY;
-    float tempMaxX, tempMaxY, tempMaxZ = INFINITY;
-
-    // Compute the corresponding bounding box
-    for (auto triangle : this->mesh->getTriangles()) {
-      /* Compute the current min */
-      float minX = std::min(std::min(triangle->getA().x, triangle->getB().x),
-                            triangle->getC().x);
-      tempMinX = minX < tempMinX ? minX : tempMinX;
-
-      float minY = std::min(std::min(triangle->getA().y, triangle->getB().y),
-                            triangle->getC().y);
-      tempMinY = minY < tempMinY ? minY : tempMinY;
-
-      float minZ = std::min(std::min(triangle->getA().z, triangle->getB().z),
-                            triangle->getC().z);
-      tempMinZ = minZ < tempMinZ ? minY : tempMinZ;
-
-      /* Compute the current max */
-      float maxX = std::max(std::max(triangle->getA().x, triangle->getB().x),
-                            triangle->getC().x);
-      tempMaxX = maxX > tempMaxX ? maxX : tempMaxX;
-
-      float maxY = std::max(std::max(triangle->getA().y, triangle->getB().y),
-                            triangle->getC().y);
-      tempMaxY = maxY > tempMaxY ? maxY : tempMaxY;
-
-      float maxZ = std::max(std::max(triangle->getA().z, triangle->getB().z),
-                            triangle->getC().z);
-      tempMaxZ = maxZ > tempMinZ ? maxY : tempMaxZ;
-    }
-    /* Set the min coordinates */
-    box_min.x = tempMinX < box_min.x ? tempMinX : box_min.x;
-    box_min.y = tempMinY < box_min.y ? tempMinY : box_min.y;
-    box_min.z = tempMinZ < box_min.z ? tempMinZ : box_min.z;
-    /* Set the max coordinates */
-    box_max.x = tempMaxX > box_max.x ? tempMaxX : box_max.x;
-    box_max.y = tempMaxY > box_max.y ? tempMaxY : box_max.y;
-    box_max.z = tempMaxZ > box_max.z ? tempMaxZ : box_max.z;
-  }
-
-  /**
-   * The function checks if we intersect the bounding box or not. If we did,
-   * then we run the intersect with the mesh contained inside of the box.
-   * @param ray
-   * @return Hit
-   */
-  Hit intersect(Ray ray) {
-    Hit hit;
-    hit.hit = false;
-    hit.intersection = glm::vec3(0);
-    hit.distance = 0;
-    hit.normal = glm::vec3(0);
-    hit.object = this;
-    /* Compute the t_values:
-     * TODO: Correct this definition comment
-     * t_min_i is the point on the t ray which first intersects the bounding
-     * box's side parallel to the i axis
-     */
-    // TODO: Check if this is the most optimized way to do it
-    // We will always keep the biggest t_min value and the smallest t_max values
-    float t_min = -INFINITY;
-    float t_max = INFINITY;
-
-    float t_1;
-    float t_2;
-
-    float entry;
-    float exit;
-    // Iterate on all axis
-    for (int i = 0; i < 3; ++i) {
-      if (ray.direction[i] != 0) {
-        t_1 = (box_min[i] - ray.origin[i] / ray.direction[i]);
-        t_2 = (box_max[i] - ray.origin[i] / ray.direction[i]);
-        entry = std::min(t_1, t_2);
-        exit = std::max(t_1, t_2);
-
-        // TODO: Check efficiency ? wrt to if statement or ternary
-        t_min = std::max(entry, t_min);
-        t_max = std::min(exit, t_max);
-
-      } else {
-        if (ray.origin[i] < box_min[i] || ray.origin[i] > box_max[i]) {
-          return hit;
-        }
-      }
-    }
-    if (t_min > t_max || t_max < 0) {
-      return hit;
-    }
-    // If the bounding box was hit, run the intersect function on the mesh
-    return this->mesh->intersect(ray);
   }
 };
 
@@ -591,10 +741,10 @@ bool intersects_any_object(Ray ray, glm::vec3 limit_point) {
 }
 
 /**
- Function that returns the color of the closest object intersected by the given
- Ray Checks if the ray intersects with any of the objects in the scene If so,
- return the color of the cloest object that got hit, if not returns the black
- color (0.0, 0.0, 0.0)
+ Function that returns the color of the closest object intersected by the
+ given Ray Checks if the ray intersects with any of the objects in the scene
+ If so, return the color of the cloest object that got hit, if not returns
+ the black color (0.0, 0.0, 0.0)
  @param ray Ray that should be traced through the scene
  @return Color at the intersection point
  */
@@ -605,9 +755,10 @@ glm::vec3 trace_ray(Ray ray) {
   closest_hit.distance = INFINITY;
 
   // For each object in the scene, we run the intersect function
-  // If the hit is positive, we check if the distance is the smallest seen so
-  // far. This will give us the closes_hit from the camera Maybe we will need to
-  // check for negative values as they would result smaller than positive ones
+  // If the hit is positive, we check if the distance is the smallest seen
+  // so far. This will give us the closes_hit from the camera Maybe we will
+  // need to check for negative values as they would result smaller than
+  // positive ones
   for (int k = 0; k < objects.size(); k++) {
     Hit hit = objects[k]->intersect(ray);
     if (hit.hit == true && hit.distance < closest_hit.distance)
@@ -632,8 +783,8 @@ glm::vec3 trace_ray(Ray ray) {
 // bounding box
 /* Notes:
  * - function to create bounding box
- * - when tracing ray, check if it hits bounding box of object. If yes, then try
- * to intersect with the object (s) in that box. Otherwise, skip to next
+ * - when tracing ray, check if it hits bounding box of object. If yes, then
+ * try to intersect with the object (s) in that box. Otherwise, skip to next
  * bounding box
  * */
 /**
@@ -673,9 +824,7 @@ void sceneDefinition() {
   glm::mat4 armadilloTraMat = armadilloTrans * armadilloRot * armadilloScale;
   Mesh *armadillo = new Mesh("meshes/armadillo.obj", armadilloTraMat);
   // armadillo->addMeshToScene();
-  // objects.push_back(armadillo);
-  Box *armadillo_bb = new Box(armadillo);
-  // objects.push_back(armadillo_bb);
+  objects.push_back(armadillo);
 
   glm::mat4 bunnyTrans = glm::translate(glm::vec3(0.0f, -3.0f, 8.0f));
   glm::mat4 bunnyRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
@@ -684,9 +833,7 @@ void sceneDefinition() {
   glm::mat4 bunnyTraMat = bunnyTrans * bunnyRot * bunnyScale;
   Mesh *bunny = new Mesh("meshes/bunny.obj", bunnyTraMat);
   // bunny->addMeshToScene();
-  // objects.push_back(bunny);
-  Box *bunnybb = new Box(bunny);
-  objects.push_back(bunnybb);
+  objects.push_back(bunny);
 
   glm::mat4 lucyTrans = glm::translate(glm::vec3(4.0f, -3.0f, 10.0f));
   glm::mat4 lucyRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
@@ -695,15 +842,14 @@ void sceneDefinition() {
   glm::mat4 lucyTraMat = lucyTrans * lucyRot * lucyScale;
   Mesh *lucy = new Mesh("meshes/lucy.obj", lucyTraMat);
   // lucy->addMeshToScene();
-  // objects.push_back(lucy);
-  Box *lucybb = new Box(lucy);
-  // objects.push_back(lucybb);
+  objects.push_back(lucy);
   cout << "Number of objects: " << objects.size() << endl;
 }
 
 glm::vec3 toneMapping(glm::vec3 intensity) {
   /*  ---- Exercise 3-----
-   Implement a tonemapping strategy and gamma correction for a correct display.
+   Implement a tonemapping strategy and gamma correction for a correct
+   display.
   */
   /* Assignment 2: Tonemapping with power function and gamma correction */
   // Alpha has no constraints
@@ -735,13 +881,14 @@ int main(int argc, const char *argv[]) {
 
   sceneDefinition();  // Let's define a scene
 
-  Image image(width, height);  // Create an image where we will store the result
+  Image image(width,
+              height);  // Create an image where we will store the result
 
   // Size of Pixel which depends on width and fov
   float S = (2 * tan(glm::radians(fov / 2))) / width;
 
-  // How much to translate from the 3D origin center of the plane to get to the
-  // point at i,j
+  // How much to translate from the 3D origin center of the plane to get to
+  // the point at i,j
   float X = -S * width / 2;
   float Y = S * height / 2;
 
@@ -763,10 +910,10 @@ int main(int argc, const char *argv[]) {
 
       // TODO: Remove when testing performance
       // Print the progress of the rendering
-      if (j % 10000 == 0) {
-        float percentage = (float)(i * height + j) / (width * height) * 100;
-        cout << "Progress: " << percentage << "%" << endl;
-      }
+      // if (j % 10000 == 0) {
+      //   float percentage = (float)(i * height + j) / (width * height) * 100;
+      //   cout << "Progress: " << percentage << "%" << endl;
+      // }
     }
 
   t = clock() - t;
