@@ -873,13 +873,16 @@ glm::vec3 toneMapping(glm::vec3 intensity) {
 }
 
 int main(int argc, const char *argv[]) {
-  clock_t t = clock();  // variable for keeping the time of the rendering
-
   int width = 2048;   // width of the image
   int height = 1536;  // height of the image
   float fov = 90;     // field of view
 
+  // variable for defining the scene (building kdtrees ecc)
+  clock_t t1 = clock();
   sceneDefinition();  // Let's define a scene
+  t1 = clock() - t1;
+  cout << "It took " << ((float)t1) / CLOCKS_PER_SEC
+       << " seconds to define the scene." << endl;
 
   Image image(width,
               height);  // Create an image where we will store the result
@@ -892,6 +895,7 @@ int main(int argc, const char *argv[]) {
   float X = -S * width / 2;
   float Y = S * height / 2;
 
+  clock_t t = clock();  // variable for keeping the time of the rendering
   for (int i = 0; i < width; i++)
     for (int j = 0; j < height; j++) {
       float dx = X + i * S + S / 2;
