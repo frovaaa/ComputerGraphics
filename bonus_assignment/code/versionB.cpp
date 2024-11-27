@@ -677,16 +677,17 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
     // light direction
     glm::vec3 light_direction = glm::normalize(lights[i]->position - point);
 
-    // Assignment 4: Check if intersects to create shades
-    Ray ray_shade(point + (light_direction * 0.001f), light_direction);
-
-    // If there is any object between the intersection point and the light, we
-    // do not contribute the color
-    if (intersects_any_object(ray_shade, lights[i]->position)) {
-      continue;
-    }
-
-    // Angle between the normal and the light direction
+    //    // Assignment 4: Check if intersects to create shades
+    //    Ray ray_shade(point + (light_direction * 0.001f), light_direction);
+    //
+    //    // If there is any object between the intersection point and the
+    //    light, we
+    //    // do not contribute the color
+    //    if (intersects_any_object(ray_shade, lights[i]->position)) {
+    //      continue;
+    //    }
+    //
+    //    // Angle between the normal and the light direction
     // No need to check negative as we clamp the value
     float phi = glm::clamp(glm::dot(normal, light_direction), 0.0f, 1.0f);
     glm::vec3 reflected_direction = ((2.0f * normal) * phi) - light_direction;

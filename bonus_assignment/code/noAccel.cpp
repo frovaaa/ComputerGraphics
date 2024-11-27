@@ -690,14 +690,14 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
     glm::vec3 light_direction = glm::normalize(lights[i]->position - point);
 
     // Assignment 4: Check if intersects to create shades
-    Ray ray_shade(point + (light_direction * 0.001f), light_direction);
+    /// Ray ray_shade(point + (light_direction * 0.001f), light_direction);
 
     // If there is any object between the intersection point and the light, we
     // do not contribute the color
-    if (intersects_any_object(ray_shade, lights[i]->position)) {
-      continue;
-    }
-
+    /*   if (intersects_any_object(ray_shade, lights[i]->position)) {
+         continue;
+       }
+   */
     // Angle between the normal and the light direction
     // No need to check negative as we clamp the value
     float phi = glm::clamp(glm::dot(normal, light_direction), 0.0f, 1.0f);
@@ -835,18 +835,18 @@ void sceneDefinition() {
       glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 armadilloScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 armadilloTraMat = armadilloTrans * armadilloRot * armadilloScale;
-  // Mesh *armadillo = new Mesh("meshes/armadillo.obj", armadilloTraMat);
-  // armadillo->addMeshToScene();
-  // objects.push_back(armadillo);
+  Mesh *armadillo = new Mesh("meshes/armadillo.obj", armadilloTraMat);
+  armadillo->addMeshToScene();
+  objects.push_back(armadillo);
 
   glm::mat4 bunnyTrans = glm::translate(glm::vec3(0.0f, -3.0f, 8.0f));
   glm::mat4 bunnyRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
                                    glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 bunnyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 bunnyTraMat = bunnyTrans * bunnyRot * bunnyScale;
-  Mesh *bunny = new Mesh("meshes/bunny_small.obj", bunnyTraMat);
-  bunny->addMeshToScene();
-  objects.push_back(bunny);
+  // Mesh *bunny = new Mesh("meshes/bunny_small.obj", bunnyTraMat);
+  // bunny->addMeshToScene();
+  // objects.push_back(bunny);
 
   glm::mat4 lucyTrans = glm::translate(glm::vec3(4.0f, -3.0f, 10.0f));
   glm::mat4 lucyRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
