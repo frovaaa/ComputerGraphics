@@ -841,7 +841,7 @@ void sceneDefinition() {
   glm::mat4 bunnyTrans = glm::translate(glm::vec3(0.0f, -3.0f, 8.0f));
   glm::mat4 bunnyRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
                                    glm::vec3(1.0f, 0.0f, 0.0f));
-  glm::mat4 bunnyScale = glm::scale(glm::vec3(0.1f, 0.1f, 0.1f));
+  glm::mat4 bunnyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 bunnyTraMat = bunnyTrans * bunnyRot * bunnyScale;
   Mesh *bunny = new Mesh("meshes/bunny_small.obj", bunnyTraMat);
   bunny->addMeshToScene();
