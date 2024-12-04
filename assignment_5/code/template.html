@@ -147,6 +147,34 @@
 			var colorAttributeLocation = gl.getAttribLocation(shaderProgram, "a_color");
 			gl.enableVertexAttribArray(colorAttributeLocation);
 			gl.vertexAttribPointer(colorAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+
+
+            // Creating the buffers and stuff for the plane
+            var planeVertexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(plane_vertices), gl.STATIC_DRAW);
+
+            // plane buffer for colors
+            var planeColorBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, planeColorBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(plane_colors), gl.STATIC_DRAW);
+
+            // VAO for a plane
+            plane_vao = gl.createVertexArray();
+            gl.bindVertexArray(plane_vao);
+
+            // Now we need to bind the buffers to the shaders variables
+            // every plane has 6 vertices
+            gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexBuffer);
+            var positionAttributeLocation = gl.getAttribLocation(shaderProgram, "a_position");
+            gl.enableVertexAttribArray(positionAttributeLocation);
+            gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+
+            // now for the color
+            gl.bindBuffer(gl.ARRAY_BUFFER, planeColorBuffer);
+            var colorAttributeLocation = gl.getAttribLocation(shaderProgram, "a_color");
+            gl.enableVertexAttribArray(colorAttributeLocation);
+            gl.vertexAttribPointer(colorAttributeLocation, 3, gl.FLOAT, false, 0, 0);
 		}
 
 		function draw() {
@@ -182,7 +210,7 @@
 			gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
 			gl.clearColor(0.2, 0.2, 0.2, 1.0);
 			gl.clear(gl.COLOR_BUFFER_BIT);
-			//gl.enable(gl.CULL_FACE);
+			gl.enable(gl.CULL_FACE);
 			gl.enable(gl.DEPTH_TEST);
 
 			// enable the GLSL program for the rendering
@@ -198,7 +226,11 @@
 			gl.bindVertexArray(triangle_vao);
 			let rotationMatrixLocation = gl.getUniformLocation(shaderProgram, "rotationMatrix");
 			gl.uniformMatrix4fv(rotationMatrixLocation, false, rotationMatrix);
-			gl.drawArrays(gl.TRIANGLES, 0, triangle_vertices.length / 3);
+			// gl.drawArrays(gl.TRIANGLES, 0, triangle_vertices.length / 3);
+
+            // drawing the plane
+            gl.bindVertexArray(plane_vao);
+            gl.drawArrays(gl.TRIANGLES, 0, plane_vertices.length / 3);
 
 
 			// this line is required for creating an animation and updating the rendering
