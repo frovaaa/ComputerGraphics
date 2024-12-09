@@ -121,60 +121,43 @@
 		//      createVAO(sphere_vao, shaderProgram, sphere_vertices, sphere_vertices, sphere_colors);
 		//      plane_vao = gl.createVertexArray();
 		//      createVAO(plane_vao, shaderProgram, plane_vertices, plane_normals, plane_colors);
-		function createVAO(vao, shader, vertices, colors) {}
-
-		function initBuffers() {
+		function createVAO(vao, shader, vertices, colors) {
 			// a buffer for positions
-			var triangleVertexBuffer = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexBuffer);
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangle_vertices), gl.STATIC_DRAW);
+			var vertexBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 
 			// a buffer for colors
-			var triangleColorBuffer = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, triangleColorBuffer);
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangle_colors), gl.STATIC_DRAW);
+			var colorBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
 
 			// VAO for a triangle
-			triangle_vao = gl.createVertexArray();
-			gl.bindVertexArray(triangle_vao);
+			gl.bindVertexArray(vao);
 
-			gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexBuffer);
-			var positionAttributeLocation = gl.getAttribLocation(shaderProgram, "a_position");
+			gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+			var positionAttributeLocation = gl.getAttribLocation(shader, "a_position");
 			gl.enableVertexAttribArray(positionAttributeLocation);
 			gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
 
-			gl.bindBuffer(gl.ARRAY_BUFFER, triangleColorBuffer);
-			var colorAttributeLocation = gl.getAttribLocation(shaderProgram, "a_color");
+			gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+			var colorAttributeLocation = gl.getAttribLocation(shader, "a_color");
 			gl.enableVertexAttribArray(colorAttributeLocation);
 			gl.vertexAttribPointer(colorAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+		}
 
+		function initBuffers() {
+			// Triangle VAO
+			triangle_vao = gl.createVertexArray();
+			createVAO(triangle_vao, shaderProgram, triangle_vertices, triangle_colors);
 
-            // Creating the buffers and stuff for the plane
-            var planeVertexBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(plane_vertices), gl.STATIC_DRAW);
+			// Plane VAO
+			plane_vao = gl.createVertexArray();
+			createVAO(plane_vao, shaderProgram, plane_vertices, plane_colors);
 
-            // plane buffer for colors
-            var planeColorBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, planeColorBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(plane_colors), gl.STATIC_DRAW);
-
-            // VAO for a plane
-            plane_vao = gl.createVertexArray();
-            gl.bindVertexArray(plane_vao);
-
-            // Now we need to bind the buffers to the shaders variables
-            // every plane has 6 vertices
-            gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexBuffer);
-            var positionAttributeLocation = gl.getAttribLocation(shaderProgram, "a_position");
-            gl.enableVertexAttribArray(positionAttributeLocation);
-            gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
-
-            // now for the color
-            gl.bindBuffer(gl.ARRAY_BUFFER, planeColorBuffer);
-            var colorAttributeLocation = gl.getAttribLocation(shaderProgram, "a_color");
-            gl.enableVertexAttribArray(colorAttributeLocation);
-            gl.vertexAttribPointer(colorAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+			// Cube VAO
+			cube_vao = gl.createVertexArray();
+			createVAO(cube_vao, shaderProgram, cube_vertices, cube_colors);
 		}
 
 		function draw() {
@@ -223,14 +206,18 @@
 
 
 			// drawing the triangle, you can remove it
-			gl.bindVertexArray(triangle_vao);
 			let rotationMatrixLocation = gl.getUniformLocation(shaderProgram, "rotationMatrix");
 			gl.uniformMatrix4fv(rotationMatrixLocation, false, rotationMatrix);
+			// gl.bindVertexArray(triangle_vao);
 			// gl.drawArrays(gl.TRIANGLES, 0, triangle_vertices.length / 3);
 
-            // drawing the plane
-            gl.bindVertexArray(plane_vao);
-            gl.drawArrays(gl.TRIANGLES, 0, plane_vertices.length / 3);
+			// drawing the plane
+			// gl.bindVertexArray(plane_vao);
+			// gl.drawArrays(gl.TRIANGLES, 0, plane_vertices.length / 3);
+
+			// drawing the cube
+			gl.bindVertexArray(cube_vao);
+			gl.drawArrays(gl.TRIANGLES, 0, cube_vertices.length / 3);
 
 
 			// this line is required for creating an animation and updating the rendering
