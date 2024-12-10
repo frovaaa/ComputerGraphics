@@ -216,8 +216,8 @@
 
 			// model
 			let modelMatrix = mat4.create();
-			mat4.scale(modelMatrix, modelMatrix, vec3.fromValues(1.0, 1.0, 1.0));
 			mat4.fromTranslation(modelMatrix, vec3.fromValues(0.0, 0.0, 0.0));
+			mat4.scale(modelMatrix, modelMatrix, vec3.fromValues(1.0, 1.0, 1.0));
 
 			// Send the matrices to the shader using the uniform variables
 			let projectionMatrixLocation = gl.getUniformLocation(shaderProgram, "projectionMatrix");
