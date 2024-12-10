@@ -28,7 +28,6 @@
 
                 out vec4 out_color;
                 void main(){
-
                     out_color = vec4(v_color, 1.0);
                 }`;
 
@@ -36,7 +35,7 @@
 		// vertices and colors of our traingle
 		var triangle_vertices = [
 			0.5, -0.5, 0.0,
-			0.0, 0.5, 0.0,
+			0.0, 0.5, 1.0,
 			-0.5, -0.5, 0.0
 		];
 		var triangle_colors = [
@@ -158,6 +157,10 @@
 			// Cube VAO
 			cube_vao = gl.createVertexArray();
 			createVAO(cube_vao, shaderProgram, cube_vertices, cube_colors);
+
+			// Sphere VAO
+			sphere_vao = gl.createVertexArray();
+			createVAO(sphere_vao, shaderProgram, sphere_vertices, sphere_colors);
 		}
 
 		function draw() {
@@ -187,7 +190,7 @@
 			// the three lines below are for rotating the triangle, you can remove it
 			var rotation = document.getElementById("rotation");
 			var rotationMatrix = mat4.create();
-			mat4.fromRotation(rotationMatrix, -(rotation.value - 100) / 100 * Math.PI, vec3.fromValues(0.0, 0.0, 1.0));
+			mat4.fromRotation(rotationMatrix, -(rotation.value - 100) / 100 * Math.PI, vec3.fromValues(0.0, 1.0, 0.0));
 
 
 			gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
@@ -218,6 +221,10 @@
 			// drawing the cube
 			gl.bindVertexArray(cube_vao);
 			gl.drawArrays(gl.TRIANGLES, 0, cube_vertices.length / 3);
+
+			// drawing the sphere
+			// gl.bindVertexArray(sphere_vao);
+			// gl.drawArrays(gl.TRIANGLES, 0, sphere_vertices.length / 3);
 
 
 			// this line is required for creating an animation and updating the rendering
