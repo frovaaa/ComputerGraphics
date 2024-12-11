@@ -9,14 +9,24 @@
 			`#version 300 es
                 in vec3 a_position;
                 in vec3 a_color;
+				in vec3 a_normal;
                 out vec3 v_color;
+				out vec3 v_normal;
 
+				// object matrices
 				uniform mat4 projectionMatrix;
 				uniform mat4 viewMatrix;
 				uniform mat4 modelMatrix;
 
+				// light matrices
+				// uniform vec3 lightDirection;
+
+
                 void main(){
                     v_color = a_color;
+					// we output the normal, we need to apply the model matrix to the normal
+					// as if we move the object, the normal should move with it
+					// v_normal = 
 
 					gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(a_position, 1.0);
                 }`;
@@ -26,9 +36,18 @@
                 precision mediump float;
 
                 in vec3 v_color;
+				in vec3 v_normal;
 
                 out vec4 out_color;
                 void main(){
+					// here we will use phong model to compute the color of the object
+					// based on the normal and light information
+					
+					// first we normalize the normal (as it is interpolated)
+					vec3 normal = normalize(v_normal);
+
+
+
                     out_color = vec4(v_color, 1.0);
                 }`;
 
@@ -121,29 +140,42 @@
 		//      createVAO(sphere_vao, shaderProgram, sphere_vertices, sphere_vertices, sphere_colors);
 		//      plane_vao = gl.createVertexArray();
 		//      createVAO(plane_vao, shaderProgram, plane_vertices, plane_normals, plane_colors);
-		function createVAO(vao, shader, vertices, colors) {
-			// a buffer for positions
+		function createVAO(vao, shader, vertices, colors, normals) {
+			// we create a buffer for positions
 			var vertexBuffer = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 
-			// a buffer for colors
+			// we create a buffer for colors
 			var colorBuffer = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
 
-			// VAO for a triangle
+			// we create a buffer for normals
+			var normalBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+
+			// bind the given VAO
 			gl.bindVertexArray(vao);
 
+			// bind buffer for position and fill in the data (send it to the GPU)
 			gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 			var positionAttributeLocation = gl.getAttribLocation(shader, "a_position");
 			gl.enableVertexAttribArray(positionAttributeLocation);
 			gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
 
+			// bind buffer for color and fill in the data (send it to the GPU)
 			gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
 			var colorAttributeLocation = gl.getAttribLocation(shader, "a_color");
 			gl.enableVertexAttribArray(colorAttributeLocation);
 			gl.vertexAttribPointer(colorAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+
+			// bind buffer for normal and fill in the data (send it to the GPU)
+			gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+			var normalAttributeLocation = gl.getAttribLocation(shader, "a_normal");
+			gl.enableVertexAttribArray(normalAttributeLocation);
+			gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);
 		}
 
 		function initBuffers() {
@@ -153,15 +185,15 @@
 
 			// Plane VAO
 			plane_vao = gl.createVertexArray();
-			createVAO(plane_vao, shaderProgram, plane_vertices, plane_colors);
+			createVAO(plane_vao, shaderProgram, plane_vertices, plane_colors, plane_normals);
 
 			// Cube VAO
 			cube_vao = gl.createVertexArray();
-			createVAO(cube_vao, shaderProgram, cube_vertices, cube_colors);
+			createVAO(cube_vao, shaderProgram, cube_vertices, cube_colors, cube_vertices);
 
 			// Sphere VAO
 			sphere_vao = gl.createVertexArray();
-			createVAO(sphere_vao, shaderProgram, sphere_vertices, sphere_colors);
+			createVAO(sphere_vao, shaderProgram, sphere_vertices, sphere_colors, sphere_vertices);
 		}
 
 		function draw() {
@@ -181,10 +213,10 @@
 			let camera_position = vec3.fromValues(camera_x, camera_y, camera_z);
 
 			// add computation of light direction
-			// let light_x =
-			// let light_y =
-			// let light_z =
-			// let lightDirection = vec3.fromValues(light_x, light_y, light_z);
+			let light_x = Math.sin(light_polar_angle) * Math.sin(light_azimuthal_angle);
+			let light_y = Math.cos(light_polar_angle);
+			let light_z = Math.sin(light_polar_angle) * Math.cos(light_azimuthal_angle);
+			let lightDirection = vec3.fromValues(light_x, light_y, light_z);
 			// you will need to use the above values to compute view and projection matrices
 
 			gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
@@ -201,7 +233,9 @@
 			// - As long as you use the same shader program you do not need to set all uniforms everytime you draw new object. The programs remembers the uniforms after calling gl.drawArrays
 			// - The same, if you draw the same object, e.g., cube, multiple times, you do not need to bind the corresponding VAO everytime you draw, but you may want to change the transformation matrices.
 
-			// setting up projection, view and model matrices
+			// setting up projection, view and model matrices for OBJECTS
+			// then we can re-define the model matrix for each object if we need to
+			// perform some transformations
 
 			// projection
 			let projectionMatrix = mat4.create();
@@ -228,6 +262,13 @@
 
 			let modelMatrixLocation = gl.getUniformLocation(shaderProgram, "modelMatrix");
 			gl.uniformMatrix4fv(modelMatrixLocation, false, modelMatrix);
+
+			// light related matrices
+			
+			// direction of the light
+			let lightDirectionLocation = gl.getUniformLocation(shaderProgram, "lightDirection");
+			gl.uniform3fv(lightDirectionLocation, lightDirection);
+
 
 			// gl.bindVertexArray(triangle_vao);
 			// gl.drawArrays(gl.TRIANGLES, 0, triangle_vertices.length / 3);

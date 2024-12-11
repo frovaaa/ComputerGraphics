@@ -146,13 +146,13 @@ var cube_colors = [
 ];
 var cube_normals = [
     // Front side
-    0.0, 0.0, -1.0,
-    0.0, 0.0, -1.0,
-    0.0, 0.0, -1.0,
+    0.0, 0.0, 1.0,
+    0.0, 0.0, 1.0,
+    0.0, 0.0, 1.0,
 
-    0.0, 0.0, -1.0,
-    0.0, 0.0, -1.0,
-    0.0, 0.0, -1.0,
+    0.0, 0.0, 1.0,
+    0.0, 0.0, 1.0,
+    0.0, 0.0, 1.0,
 
     // Left side
     1.0, 0.0, 0.0,
@@ -164,9 +164,9 @@ var cube_normals = [
     1.0, 0.0, 0.0,
 
     // Back side
-    0.0, 0.0, 1.0,
-    0.0, 0.0, 1.0,
-    0.0, 0.0, 1.0,
+    0.0, 0.0, -1.0,
+    0.0, 0.0, -1.0,
+    0.0, 0.0, -1.0,
 
     0.0, 0.0, 1.0,
     0.0, 0.0, 1.0,
@@ -203,6 +203,7 @@ var cube_normals = [
 
 //---------------------------
 // definition of the sphere
+// since it's a unit sphere, we can use the sphere_vertices as the normals
 //---------------------------
 var sphere_vertices = [];
 var sphere_colors = [];
