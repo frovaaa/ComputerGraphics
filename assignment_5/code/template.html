@@ -236,26 +236,57 @@
 			// gl.bindVertexArray(plane_vao);
 			// gl.drawArrays(gl.TRIANGLES, 0, plane_vertices.length / 3);
 
-			// drawing the cube
+			// drawing the cube 1
+			// first we bind the VAO for the CUBE
 			gl.bindVertexArray(cube_vao);
-			gl.drawArrays(gl.TRIANGLES, 0, cube_vertices.length / 3);
 
-
-
-
-
-			// model cube 2
+			// model cube 1
 			modelMatrix = mat4.create();
-			mat4.fromTranslation(modelMatrix, vec3.fromValues(1.5, 0.0, 0.0));
+			mat4.fromTranslation(modelMatrix, vec3.fromValues(-1.0, 0.0, 0.0));
 			mat4.scale(modelMatrix, modelMatrix, vec3.fromValues(1.0, 1.0, 1.0));
 			modelMatrixLocation = gl.getUniformLocation(shaderProgram, "modelMatrix");
 			gl.uniformMatrix4fv(modelMatrixLocation, false, modelMatrix);
 
+			// then we draw the cube
+			gl.drawArrays(gl.TRIANGLES, 0, cube_vertices.length / 3);
+
+			// model cube 2
+			modelMatrix = mat4.create();
+			mat4.fromTranslation(modelMatrix, vec3.fromValues(2.0, 0.0, 0.0));
+			mat4.scale(modelMatrix, modelMatrix, vec3.fromValues(1.0, 1.0, 1.0));
+			modelMatrixLocation = gl.getUniformLocation(shaderProgram, "modelMatrix");
+			gl.uniformMatrix4fv(modelMatrixLocation, false, modelMatrix);
+
+			// then we draw the cube
 			gl.drawArrays(gl.TRIANGLES, 0, cube_vertices.length / 3);
 
 			// drawing the sphere
-			// gl.bindVertexArray(sphere_vao);
-			// gl.drawArrays(gl.TRIANGLES, 0, sphere_vertices.length / 3);
+			// first we bind the VAO for the SPHERE
+			gl.bindVertexArray(sphere_vao);
+
+			// model sphere
+			modelMatrix = mat4.create();
+			mat4.fromTranslation(modelMatrix, vec3.fromValues(0.5, 0.0, 0.0));
+			mat4.scale(modelMatrix, modelMatrix, vec3.fromValues(1.0, 1.0, 1.0));
+			modelMatrixLocation = gl.getUniformLocation(shaderProgram, "modelMatrix");
+			gl.uniformMatrix4fv(modelMatrixLocation, false, modelMatrix);
+
+			// then we draw the sphere
+			gl.drawArrays(gl.TRIANGLES, 0, sphere_vertices.length / 3);
+
+			// drawing the plane
+			// first we bind the VAO for the PLANE
+			gl.bindVertexArray(plane_vao);
+
+			// model plane
+			modelMatrix = mat4.create();
+			mat4.fromTranslation(modelMatrix, vec3.fromValues(0.0, 0.0, 0.0));
+			mat4.scale(modelMatrix, modelMatrix, vec3.fromValues(10.0, 1.0, 10.0));
+			modelMatrixLocation = gl.getUniformLocation(shaderProgram, "modelMatrix");
+			gl.uniformMatrix4fv(modelMatrixLocation, false, modelMatrix);
+
+			// then we draw the plane
+			gl.drawArrays(gl.TRIANGLES, 0, plane_vertices.length / 3);
 
 
 			// this line is required for creating an animation and updating the rendering
