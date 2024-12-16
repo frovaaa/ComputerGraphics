@@ -16,6 +16,7 @@
 #include "Image.h"
 #include "Material.h"
 #include "glm/glm.hpp"
+#include "glm/gtc/noise.hpp"
 #include "glm/gtx/transform.hpp"
 
 using namespace std;
@@ -204,6 +205,16 @@ class Triangle : public Object {
   glm::vec3 getC() { return this->c; }
 
   glm::vec3 getCentroid() { return (a + b + c) / 3.0f; }
+
+  // setters for the verteces a, b, c
+  void setA(glm::vec3 a) { this->a = a; }
+
+  void setB(glm::vec3 b) { this->b = b; }
+
+  void setC(glm::vec3 c) { this->c = c; }
+
+  // setter for the normal
+  void setNormal(glm::vec3 normal) { this->normal = normal; }
 
   /* override the setTransformation method so that we can update
    * the a, b, c verteces, the normal and recompute the plane
@@ -538,12 +549,13 @@ class Mesh : public Object {
   std::vector<Triangle *> triangles;
   // File path to the obj file
   std::string objPath;
-  // Bonus assignment: KDTree
-  KDTreeNode *kdTreeRoot;
 
   bool smoothShading = false;
 
  public:
+  // Bonus assignment: KDTree
+  KDTreeNode *kdTreeRoot;
+
   Mesh(std::string objPath, Material material) : objPath(objPath) {
     this->material = material;
     this->loadObj();
@@ -702,6 +714,68 @@ class Light {
 vector<Light *> lights;  ///< A list of lights in the scene
 glm::vec3 ambient_light(0.02f, 0.02f, 0.02f);
 
+// function that given a color and a point, applies Perlin noise to the color
+Material applyPerlinNoise(Material color, glm::vec3 point,
+                          float intensity = 0.3f) {
+  Material new_color = color;
+
+  // Apply Perlin noise to the color
+  new_color.diffuse.r += intensity * glm::perlin(point);
+  new_color.diffuse.g += intensity * glm::perlin(point);
+  new_color.diffuse.b += intensity * glm::perlin(point);
+
+  // Clamp the color values to be between 0 and 1
+  new_color.diffuse =
+      glm::clamp(new_color.diffuse, glm::vec3(0.0), glm::vec3(1.0));
+
+  return new_color;
+}
+
+// Function that given a normal and a point, applies Perlin noise to the normal
+glm::vec3 applyPerlinNoise(glm::vec3 normal, glm::vec3 point,
+                           float intensity = 0.3f) {
+  glm::vec3 new_normal = normal;
+
+  // Apply Perlin noise to the normal
+  new_normal.x += intensity * glm::perlin(point);
+  new_normal.y += intensity * glm::perlin(point);
+  new_normal.z += intensity * glm::perlin(point);
+
+  // Normalize the normal
+  new_normal = glm::normalize(new_normal);
+
+  return new_normal;
+}
+
+void applyPerlinNoiseToMesh(Mesh *mesh, float intensity = 0.3f,
+                            float scale = 1.0f) {
+  for (auto &triangle : mesh->getTriangles()) {
+    glm::vec3 a = triangle->getA();
+    glm::vec3 b = triangle->getB();
+    glm::vec3 c = triangle->getC();
+
+    // Apply Perlin noise to the y-coordinate of each vertex
+    a.y += intensity * glm::perlin(glm::vec2(a.x * scale, a.z * scale));
+    b.y += intensity * glm::perlin(glm::vec2(b.x * scale, b.z * scale));
+    c.y += intensity * glm::perlin(glm::vec2(c.x * scale, c.z * scale));
+
+    // Update the vertices of the triangle
+    triangle->setA(a);
+    triangle->setB(b);
+    triangle->setC(c);
+
+    // Recompute the normal with the new vertices
+    glm::vec3 new_normal = glm::cross((b - a), (c - a));
+    triangle->setNormal(new_normal);
+
+    // Update the vertices of the triangle
+    triangle->setTransformation(glm::mat4(1.0f));  // Reset transformation
+  }
+
+  // Rebuild the KDTree
+  mesh->kdTreeRoot = buildKDTree(mesh->getTriangles());
+}
+
 /** Function for computing color of an object according to the Phong Model
  @param point A point belonging to the object for which the color is computed
  @param normal A normal vector the the point
@@ -711,6 +785,13 @@ glm::vec3 ambient_light(0.02f, 0.02f, 0.02f);
 */
 glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
                      glm::vec3 view_direction, Material material) {
+  // First I apply the Perlin Noise to the material based on the point
+  // coordinates
+  material = applyPerlinNoise(material, point);
+
+  // Apply perlin noise to the normal
+  // normal = applyPerlinNoise(normal, point);
+
   // Illumination intensity
   glm::vec3 color(0.0);
 
@@ -762,6 +843,7 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
   color += material.ambient * ambient_light;
   // The final color has to be clamped so the values do not go beyond 0 and 1.
   color = glm::clamp(color, glm::vec3(0.0), glm::vec3(1.0));
+
   return color;
 }
 // Assignment 4
@@ -835,9 +917,9 @@ glm::vec3 trace_ray(Ray ray) {
  */
 void sceneDefinition() {
   /* Define lights */
-  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(1.0f)));
+  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(0.0f)));
   lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(0.1f)));
-  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.4f)));
+  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.2f)));
 
   /* Assignment 2: Planes */
   // Points at extremities of the box (top right and back left)
@@ -853,7 +935,7 @@ void sceneDefinition() {
   // Left wall
   objects.push_back(new Plane(back_left_p, x_norm));
   // Bottom wall
-  objects.push_back(new Plane(back_left_p, y_norm));
+  // objects.push_back(new Plane(back_left_p, y_norm));
   // Right wall
   objects.push_back(new Plane(top_right_p, x_norm));
   // Front wall
@@ -883,9 +965,36 @@ void sceneDefinition() {
                                   glm::vec3(0.0f, 1.0f, 0.0f));
   glm::mat4 lucyScale = glm::scale(glm::vec3(0.5f, 0.5f, 0.5f));
   glm::mat4 lucyTraMat = lucyTrans * lucyRot * lucyScale;
-  Mesh *lucy = new Mesh("meshes/dude.obj", lucyTraMat);
-  // lucy->addMeshToScene();
+
+  Material blue_dark;
+  blue_dark.diffuse = glm::vec3(0.1f, 0.1f, 0.8f);
+  blue_dark.ambient = glm::vec3(0.01f, 0.01f, 0.9f);
+  blue_dark.specular = glm::vec3(0.6f);
+  blue_dark.shininess = 100.0f;
+
+  Mesh *lucy = new Mesh("meshes/dude.obj", lucyTraMat, blue_dark);
   objects.push_back(lucy);
+
+  // water/bottom plane mesh
+  glm::mat4 waterTrans = glm::translate(glm::vec3(0.0f, -3.5f, 10.0f));
+  glm::mat4 waterRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
+                                   glm::vec3(0.0f, 1.0f, 0.0f));
+  glm::mat4 waterScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
+
+  glm::mat4 waterTraMat = waterTrans * waterRot * waterScale;
+
+  Material water;
+  water.diffuse = glm::vec3(0.0f, 0.0f, 0.8f);
+  water.ambient = glm::vec3(0.01f, 0.01f, 0.9f);
+  water.specular = glm::vec3(0.6f);
+  water.shininess = 100.0f;
+
+  Mesh *waterMesh = new Mesh("meshes/water.obj", waterTraMat, water);
+
+  applyPerlinNoiseToMesh(waterMesh, 0.7f, 0.5f);
+
+  objects.push_back(waterMesh);
+
   cout << "Number of objects: " << objects.size() << endl;
 }
 
