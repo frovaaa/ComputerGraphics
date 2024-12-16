@@ -33,6 +33,7 @@ struct Material {
   int perlin_noise_type = 0;
   float perlin_noise_intensity = 0.3f;
   float perlin_noise_scale = 1.0f;
+  bool perlin_noise_gradient = false;
 };
 
 #endif /* Material_h */

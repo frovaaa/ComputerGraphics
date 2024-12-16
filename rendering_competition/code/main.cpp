@@ -717,37 +717,76 @@ glm::vec3 ambient_light(0.02f, 0.02f, 0.02f);
 // PERLIN NOISE FUNCTIONS
 // Function that given a vec2 point, applies Perlin noise to the color
 Material applyPerlinNoiseToMaterial(Material color, glm::vec2 point,
-                                    float intensity = 0.3f,
-                                    float scale = 1.0f) {
+                                    float intensity = 0.3f, float scale = 1.0f,
+                                    bool gradient = false) {
   Material new_color = color;
 
-  // Apply Perlin noise to the color
-  new_color.diffuse.r += intensity * glm::perlin(point * scale);
-  new_color.diffuse.g += intensity * glm::perlin(point * scale);
-  new_color.diffuse.b += intensity * glm::perlin(point * scale);
+  if (gradient) {
+    // First we get the Perlin noise value
+    float noiseValue = glm::perlin(point * scale);
+    // Normalize the noise value to be between 0 and 1
+    noiseValue = (noiseValue + 1.0f) / 2.0f;
 
-  // Clamp the color values to be between 0 and 1
-  new_color.diffuse =
-      glm::clamp(new_color.diffuse, glm::vec3(0.0), glm::vec3(1.0));
+    // Now we map the noise value to color bands
+    if (noiseValue < 0.2) {
+      new_color.diffuse = glm::vec3(0.0, 0.0, 1.0);
+    } else if (noiseValue < 0.4) {
+      new_color.diffuse = glm::vec3(0.0, 1.0, 0.0);
+    } else if (noiseValue < 0.6) {
+      new_color.diffuse = glm::vec3(1.0, 1.0, 0.0);
+    } else if (noiseValue < 0.8) {
+      new_color.diffuse = glm::vec3(1.0, 0.5, 0.0);
+    } else {
+      new_color.diffuse = glm::vec3(1.0, 0.0, 0.0);
+    }
+  } else {
+    // Apply Perlin noise to the color
+    new_color.diffuse.r += intensity * glm::perlin(point * scale);
+    new_color.diffuse.g += intensity * glm::perlin(point * scale);
+    new_color.diffuse.b += intensity * glm::perlin(point * scale);
+
+    // Clamp the color values to be between 0 and 1
+    new_color.diffuse =
+        glm::clamp(new_color.diffuse, glm::vec3(0.0), glm::vec3(1.0));
+  }
 
   return new_color;
 }
 
 // Function that given a vec3 point, applies Perlin noise to the color
 Material applyPerlinNoiseToMaterial(Material color, glm::vec3 point,
-                                    float intensity = 0.3f,
-                                    float scale = 1.0f) {
+                                    float intensity = 0.3f, float scale = 1.0f,
+                                    bool gradient = false) {
   Material new_color = color;
 
-  // Apply Perlin noise to the color
-  new_color.diffuse.r += intensity * glm::perlin(point * scale);
-  new_color.diffuse.g += intensity * glm::perlin(point * scale);
-  new_color.diffuse.b += intensity * glm::perlin(point * scale);
+  if (gradient) {
+    // First we get the Perlin noise value
+    float noiseValue = glm::perlin(point * scale);
+    // Normalize the noise value to be between 0 and 1
+    noiseValue = (noiseValue + 1.0f) / 2.0f;
 
-  // Clamp the color values to be between 0 and 1
-  new_color.diffuse =
-      glm::clamp(new_color.diffuse, glm::vec3(0.0), glm::vec3(1.0));
+    // Now we map the noise value to color bands
+    if (noiseValue < 0.2) {
+      new_color.diffuse = glm::vec3(0.0, 0.0, 1.0);
+    } else if (noiseValue < 0.4) {
+      new_color.diffuse = glm::vec3(0.0, 1.0, 0.0);
+    } else if (noiseValue < 0.6) {
+      new_color.diffuse = glm::vec3(1.0, 1.0, 0.0);
+    } else if (noiseValue < 0.8) {
+      new_color.diffuse = glm::vec3(1.0, 0.5, 0.0);
+    } else {
+      new_color.diffuse = glm::vec3(1.0, 0.0, 0.0);
+    }
+  } else {
+    // Apply Perlin noise to the color
+    new_color.diffuse.r += intensity * glm::perlin(point * scale);
+    new_color.diffuse.g += intensity * glm::perlin(point * scale);
+    new_color.diffuse.b += intensity * glm::perlin(point * scale);
 
+    // Clamp the color values to be between 0 and 1
+    new_color.diffuse =
+        glm::clamp(new_color.diffuse, glm::vec3(0.0), glm::vec3(1.0));
+  }
   return new_color;
 }
 
@@ -812,13 +851,14 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
       case 2:
         material = applyPerlinNoiseToMaterial(
             material, glm::vec2(point.x, point.z),
-            material.perlin_noise_intensity, material.perlin_noise_scale);
+            material.perlin_noise_intensity, material.perlin_noise_scale,
+            material.perlin_noise_gradient);
         break;
 
       case 3:
-        material = applyPerlinNoiseToMaterial(material, point,
-                                              material.perlin_noise_intensity,
-                                              material.perlin_noise_scale);
+        material = applyPerlinNoiseToMaterial(
+            material, point, material.perlin_noise_intensity,
+            material.perlin_noise_scale, material.perlin_noise_gradient);
         break;
       default:
         cout << "Invalid Perlin Noise Type" << endl;
@@ -978,6 +1018,7 @@ void sceneDefinition() {
   space.perlin_noise_type = 3;
   space.perlin_noise_intensity = 0.1f;
   space.perlin_noise_scale = 0.5f;
+  space.perlin_noise_gradient = true;
 
   /* Add walls */
   // Left wall
