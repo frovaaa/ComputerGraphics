@@ -716,6 +716,7 @@ glm::vec3 ambient_light(0.02f, 0.02f, 0.02f);
 
 // PERLIN NOISE FUNCTIONS
 // Function that given a vec2 point, applies Perlin noise to the color
+// The scale factor will just make the noise start from a different point
 Material applyPerlinNoiseToMaterial(Material color, glm::vec2 point,
                                     float intensity = 0.3f, float scale = 1.0f,
                                     bool gradient = false) {
@@ -754,6 +755,7 @@ Material applyPerlinNoiseToMaterial(Material color, glm::vec2 point,
 }
 
 // Function that given a vec3 point, applies Perlin noise to the color
+// The scale factor will just make the noise start from a different point
 Material applyPerlinNoiseToMaterial(Material color, glm::vec3 point,
                                     float intensity = 0.3f, float scale = 1.0f,
                                     bool gradient = false) {
@@ -1022,21 +1024,64 @@ void sceneDefinition() {
 
   /* Add walls */
   // Left wall
-  objects.push_back(new Plane(back_left_p, x_norm, space));
+  glm::mat4 leftWallTrans = glm::translate(glm::vec3(-15, 5, 15));
+  glm::mat4 leftWallRot = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),
+                                      glm::vec3(0.0f, 0.0f, 1.0f));
+  glm::mat4 leftWallScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
+  glm::mat4 leftWallTraMat = leftWallTrans * leftWallRot * leftWallScale;
+
+  Mesh *left_wall = new Mesh("meshes/low_res_water.obj", leftWallTraMat, space);
+  objects.push_back(left_wall);
+
+  // objects.push_back(new Plane(back_left_p, x_norm, space));
   // Bottom wall
   // objects.push_back(new Plane(back_left_p, y_norm));
   // Right wall
-  objects.push_back(new Plane(top_right_p, x_norm, space));
+
+  glm::mat4 rightWallTrans = glm::translate(glm::vec3(15, 5, 15));
+  glm::mat4 rightWallRot = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f),
+                                       glm::vec3(0.0f, 0.0f, 1.0f));
+  glm::mat4 rightWallScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
+  glm::mat4 rightWallTraMat = rightWallTrans * rightWallRot * rightWallScale;
+
+  Mesh *right_wall =
+      new Mesh("meshes/low_res_water.obj", rightWallTraMat, space);
+  objects.push_back(right_wall);
+
+  // objects.push_back(new Plane(top_right_p, x_norm, space));
+
   // Front wall
-  objects.push_back(new Plane(top_right_p, z_norm, space));
+  glm::mat4 frontWallTrans = glm::translate(glm::vec3(0, 5, 20));
+  glm::mat4 frontWallRot = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f),
+                                       glm::vec3(1.0f, 0.0f, 0.0f));
+  glm::mat4 frontWallScale = glm::scale(glm::vec3(3.0f, 3.0f, 3.0f));
+  glm::mat4 frontWallTraMat = frontWallTrans * frontWallRot * frontWallScale;
+
+  Mesh *front_wall =
+      new Mesh("meshes/low_res_water.obj", frontWallTraMat, space);
+  objects.push_back(front_wall);
+
+  // objects.push_back(new Plane(top_right_p, z_norm, space));
 
   /* Add meshes */
+  Material armadilloMaterial;
+  armadilloMaterial.diffuse = glm::vec3(0.0f);
+  armadilloMaterial.ambient = glm::vec3(0.5f);
+  armadilloMaterial.specular = glm::vec3(0.5f);
+  armadilloMaterial.shininess = 100.0f;
+  armadilloMaterial.apply_perlin_noise = true;
+  armadilloMaterial.perlin_noise_type = 3;
+  armadilloMaterial.perlin_noise_intensity = 0.1f;
+  armadilloMaterial.perlin_noise_scale = 0.8f;
+  armadilloMaterial.perlin_noise_gradient = true;
+
   glm::mat4 armadilloTrans = glm::translate(glm::vec3(-4.0f, -3.0f, 10.0f));
   glm::mat4 armadilloRot =
       glm::rotate(glm::mat4(1.0f), (float)0.0, glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 armadilloScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 armadilloTraMat = armadilloTrans * armadilloRot * armadilloScale;
-  Mesh *armadillo = new Mesh("meshes/armadillo.obj", armadilloTraMat);
+  Mesh *armadillo =
+      new Mesh("meshes/armadillo.obj", armadilloTraMat, armadilloMaterial);
   // armadillo->addMeshToScene();
   objects.push_back(armadillo);
 
@@ -1082,8 +1127,7 @@ void sceneDefinition() {
   water.perlin_noise_intensity = 0.7f;
   water.perlin_noise_scale = 0.5f;
 
-  Mesh *waterMesh = new Mesh("meshes/water.obj", waterTraMat, water);
-
+  Mesh *waterMesh = new Mesh("meshes/low_res_water.obj", waterTraMat, water);
   applyPerlinNoiseToMesh(waterMesh, 0.7f, 0.5f);
 
   objects.push_back(waterMesh);
