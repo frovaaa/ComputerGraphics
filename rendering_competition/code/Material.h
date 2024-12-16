@@ -22,6 +22,17 @@ struct Material {
   float reflection = 0.0f;
   bool refracts_light = false;
   float refraction_index = 0.0f;
+
+  // Bonus rendering competition
+  // Apply or not the perlin noise to the material during phong model
+  // calculation
+  bool apply_perlin_noise = false;
+  // Choose how many axis to use for the perlin noise
+  // 2: use vec2
+  // 3: use vec3
+  int perlin_noise_type = 0;
+  float perlin_noise_intensity = 0.3f;
+  float perlin_noise_scale = 1.0f;
 };
 
 #endif /* Material_h */
