@@ -166,10 +166,26 @@ class Triangle : public Object {
   glm::vec3 b;  // p2
   glm::vec3 c;  // p3
   glm::vec3 normal;
+  std::vector<glm::vec3> smoothNormals;  // vector of normals for smooth shading
 
  public:
   Triangle(glm::vec3 a, glm::vec3 b, glm::vec3 c, Material material)
       : a(a), b(b), c(c) {
+    this->normal = glm::cross((b - a), (c - a));
+    this->plane = new Plane(a, this->normal);
+    this->material = material;
+  }
+
+  Triangle(glm::vec3 a, glm::vec3 b, glm::vec3 c,
+           std::vector<glm::vec3> smoothNormals)
+      : a(a), b(b), c(c), smoothNormals(smoothNormals) {
+    this->normal = glm::cross((b - a), (c - a));
+    this->plane = new Plane(a, this->normal);
+  }
+
+  Triangle(glm::vec3 a, glm::vec3 b, glm::vec3 c, Material material,
+           std::vector<glm::vec3> smoothNormals)
+      : a(a), b(b), c(c), smoothNormals(smoothNormals) {
     this->normal = glm::cross((b - a), (c - a));
     this->plane = new Plane(a, this->normal);
     this->material = material;
@@ -180,13 +196,13 @@ class Triangle : public Object {
     this->plane = new Plane(a, this->normal);
   }
 
+  // getters for the verteces a, b, c
   glm::vec3 getA() { return this->a; }
 
   glm::vec3 getB() { return this->b; }
 
   glm::vec3 getC() { return this->c; }
 
-  // Bonus assignment
   glm::vec3 getCentroid() { return (a + b + c) / 3.0f; }
 
   /* override the setTransformation method so that we can update
@@ -205,6 +221,12 @@ class Triangle : public Object {
     this->c = glm::vec3(this->transformationMatrix * glm::vec4(this->c, 1.0f));
     this->normal = glm::cross((this->b - this->a), (this->c - this->a));
     this->plane = new Plane(this->a, this->normal);
+
+    // Transform all the smooth normals if they are present
+    for (int i = 0; i < this->smoothNormals.size(); i++) {
+      this->smoothNormals[i] = glm::vec3(
+          this->normalMatrix * glm::vec4(this->smoothNormals[i], 0.0f));
+    }
   }
 
   Hit intersect(Ray ray) {
@@ -241,10 +263,15 @@ class Triangle : public Object {
       float dot3 = glm::dot(this->normal, n3);
       float lambda3 = dot3 / glm::pow(glm::length(this->normal), 2);
 
-      // TODO: Fix this
       if ((lambda1 >= 0 && lambda2 >= 0 && lambda3 >= 0) &&
           (lambda1 + lambda2 + lambda3) <= 1.0 + 1e-6) {
-        hit.normal = glm::normalize(this->normal);
+        if (this->smoothNormals.size() > 0) {
+          hit.normal = glm::normalize(lambda1 * this->smoothNormals[0] +
+                                      lambda2 * this->smoothNormals[1] +
+                                      lambda3 * this->smoothNormals[2]);
+        } else {
+          hit.normal = glm::normalize(this->normal);
+        }
         return hit;
       } else {
         hit.hit = false;
@@ -337,20 +364,6 @@ class KDTreeNode {
 
   // List of triangles in the leaf node
   std::vector<Triangle *> triangles;
-
-  // TODO: Fix this, we can use a union to save memory but right now it gives
-  // errors
-  // We can use a union to save memory as we will only use one of the two
-  // fields union {
-  //   // Internal node
-  //   struct {
-  //     KDTreeNode *left;
-  //     KDTreeNode *right;
-  //   };
-  //   // Leaf node
-  //   // TODO: Could be a pointer to nextTriangle instead of a vector
-  //   std::vector<Triangle *> triangles;
-  // };
 
   // Constructor for internal node
   KDTreeNode(int axis, float split, KDTreeNode *left, KDTreeNode *right,
@@ -528,6 +541,8 @@ class Mesh : public Object {
   // Bonus assignment: KDTree
   KDTreeNode *kdTreeRoot;
 
+  bool smoothShading = false;
+
  public:
   Mesh(std::string objPath, Material material) : objPath(objPath) {
     this->material = material;
@@ -568,19 +583,18 @@ class Mesh : public Object {
 
     std::vector<glm::vec3> vertices;
     std::vector<glm::vec3> normals;
-    std::vector<glm::vec3> faces;
+    std::vector<Face> faces;
 
     std::string line;
     // Read the file line by line
     while (std::getline(file, line)) {
-      // Craete a string stream from the line
+      // Create a string stream from the line
       std::stringstream ss(line);
       std::string type;
       // Read the first word of the line
       ss >> type;
 
       // Check the type of the line
-      // Could be a vertex, a normal, face or the smooth shading option
       if (type == "v") {
         glm::vec3 vertex;
         ss >> vertex.x >> vertex.y >> vertex.z;
@@ -597,37 +611,66 @@ class Mesh : public Object {
           Read the three vertices of the face
           and store them in the faces vector
           The index of the vertices is 1-based so we need to subtract 1
+
+          The face line could also be just f v v v
+          So we need to check if the line is in the first format
         */
-        glm::vec3 face;
+        Face face;
         std::string vertex;
-        for (int i = 0; i < 3; i++) {
-          ss >> vertex;
+        // Read space separated vertices
+        while (ss >> vertex) {
+          // Creates a string stream from the vertex string
           std::stringstream vss(vertex);
           std::string index;
+          // Reads the vertex index before the first '/'
+          // If there is no '/' it means that the line is in the second format
+          // So we just read the entire vertex
           std::getline(vss, index, '/');
-          face[i] = std::stoi(index);
+          face.vertices.push_back(std::stoi(index) - 1);
+          // Check if the line is in the first format
+          // We do this by checking if the next character is a '/'
+          if (vss.peek() == '/') {
+            // If yes, we ignore the first '/' as we ignore the texture index
+            vss.ignore();
+            // Then, we read the normal index and add it to the list
+            std::getline(vss, index, '/');
+            face.normals.push_back(std::stoi(index) - 1);
+          }
         }
         faces.push_back(face);
+      } else if (type == "s") {
+        // Smooth shading option
+        std::string option;
+        ss >> option;
+        this->smoothShading = (option == "1");
       }
     }
 
     // Create the triangles from the vertices and faces
     for (int i = 0; i < faces.size(); i++) {
-      glm::vec3 a = vertices[faces[i].x - 1];
-      glm::vec3 b = vertices[faces[i].y - 1];
-      glm::vec3 c = vertices[faces[i].z - 1];
+      glm::vec3 a = vertices[faces[i].vertices[0]];
+      glm::vec3 b = vertices[faces[i].vertices[1]];
+      glm::vec3 c = vertices[faces[i].vertices[2]];
 
-      Triangle *triangle = new Triangle(a, b, c, this->material);
+      Triangle *triangle;
+      if (smoothShading && faces[i].normals.size() == 3) {
+        std::vector<glm::vec3> smoothNormals;
+        for (int j = 0; j < 3; j++) {
+          smoothNormals.push_back(normals[faces[i].normals[j]]);
+        }
+        triangle = new Triangle(a, b, c, this->material, smoothNormals);
+      } else {
+        triangle = new Triangle(a, b, c, this->material);
+      }
       triangle->setTransformation(this->transformationMatrix);
-
       this->triangles.push_back(triangle);
     }
 
-    // In the end we close the file
     file.close();
 
     std::cout << "Number of triangles: " << this->triangles.size() << std::endl;
     std::cout << "Number of vertices: " << vertices.size() << std::endl;
+    std::cout << "Number of normals: " << normals.size() << std::endl;
   }
 
   Hit intersect(Ray ray) {
@@ -831,16 +874,16 @@ void sceneDefinition() {
                                    glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 bunnyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
   glm::mat4 bunnyTraMat = bunnyTrans * bunnyRot * bunnyScale;
-  Mesh *bunny = new Mesh("meshes/bunny.obj", bunnyTraMat);
+  Mesh *bunny = new Mesh("meshes/bunny_with_normals.obj", bunnyTraMat);
   // bunny->addMeshToScene();
   objects.push_back(bunny);
 
   glm::mat4 lucyTrans = glm::translate(glm::vec3(4.0f, -3.0f, 10.0f));
-  glm::mat4 lucyRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
-                                  glm::vec3(1.0f, 0.0f, 0.0f));
-  glm::mat4 lucyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
+  glm::mat4 lucyRot = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f),
+                                  glm::vec3(0.0f, 1.0f, 0.0f));
+  glm::mat4 lucyScale = glm::scale(glm::vec3(0.5f, 0.5f, 0.5f));
   glm::mat4 lucyTraMat = lucyTrans * lucyRot * lucyScale;
-  Mesh *lucy = new Mesh("meshes/lucy.obj", lucyTraMat);
+  Mesh *lucy = new Mesh("meshes/dude.obj", lucyTraMat);
   // lucy->addMeshToScene();
   objects.push_back(lucy);
   cout << "Number of objects: " << objects.size() << endl;
