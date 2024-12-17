@@ -797,15 +797,14 @@ glm::vec3 applyPerlinNoiseToNormal(glm::vec3 normal, glm::vec3 point,
                                    float intensity = 0.3f, float scale = 1.0f) {
   glm::vec3 new_normal = normal;
 
+  glm::vec3 perturbed_normal = normal;
   // Apply Perlin noise to the normal
-  new_normal.x += intensity * glm::perlin(point * scale);
-  new_normal.y += intensity * glm::perlin(point * scale);
-  new_normal.z += intensity * glm::perlin(point * scale);
+  perturbed_normal.x += intensity * glm::perlin(point * scale);
+  perturbed_normal.y += intensity * glm::perlin(point * scale);
+  perturbed_normal.z += intensity * glm::perlin(point * scale);
 
   // Normalize the normal
-  new_normal = glm::normalize(new_normal);
-
-  return new_normal;
+  return glm::normalize(perturbed_normal);
 }
 
 void applyPerlinNoiseToMesh(Mesh *mesh, float intensity = 0.3f,
@@ -855,12 +854,22 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
             material, glm::vec2(point.x, point.z),
             material.perlin_noise_intensity, material.perlin_noise_scale,
             material.perlin_noise_gradient);
+
+        // apply perlin noise to the normal
+        normal = applyPerlinNoiseToNormal(
+            normal, point, material.perlin_noise_normal_intensity,
+            material.perlin_noise_normal_scale);
         break;
 
       case 3:
         material = applyPerlinNoiseToMaterial(
             material, point, material.perlin_noise_intensity,
             material.perlin_noise_scale, material.perlin_noise_gradient);
+
+        // apply perlin noise to the normal
+        normal = applyPerlinNoiseToNormal(
+            normal, point, material.perlin_noise_normal_intensity,
+            material.perlin_noise_normal_scale);
         break;
       default:
         cout << "Invalid Perlin Noise Type" << endl;
@@ -1018,8 +1027,11 @@ void sceneDefinition() {
   space.shininess = 0.0f;
   space.apply_perlin_noise = true;
   space.perlin_noise_type = 3;
-  space.perlin_noise_intensity = 0.1f;
-  space.perlin_noise_scale = 0.5f;
+  // If gradient is true, intensity will be ignored
+  space.perlin_noise_intensity = 0.9f;
+  space.perlin_noise_scale = 0.6f;
+  space.perlin_noise_normal_intensity = 0.4f;
+  space.perlin_noise_normal_scale = 1.5f;
   space.perlin_noise_gradient = true;
 
   /* Add walls */
@@ -1065,7 +1077,7 @@ void sceneDefinition() {
 
   /* Add meshes */
   Material armadilloMaterial;
-  armadilloMaterial.diffuse = glm::vec3(0.0f);
+  armadilloMaterial.diffuse = glm::vec3(0.3f);
   armadilloMaterial.ambient = glm::vec3(0.5f);
   armadilloMaterial.specular = glm::vec3(0.5f);
   armadilloMaterial.shininess = 100.0f;
@@ -1073,7 +1085,6 @@ void sceneDefinition() {
   armadilloMaterial.perlin_noise_type = 3;
   armadilloMaterial.perlin_noise_intensity = 0.1f;
   armadilloMaterial.perlin_noise_scale = 0.8f;
-  armadilloMaterial.perlin_noise_gradient = true;
 
   glm::mat4 armadilloTrans = glm::translate(glm::vec3(-4.0f, -3.0f, 10.0f));
   glm::mat4 armadilloRot =
@@ -1126,8 +1137,10 @@ void sceneDefinition() {
   water.perlin_noise_type = 2;
   water.perlin_noise_intensity = 0.7f;
   water.perlin_noise_scale = 0.5f;
+  water.perlin_noise_normal_intensity = 0.5f;
+  water.perlin_noise_normal_scale = 0.5f;
 
-  Mesh *waterMesh = new Mesh("meshes/low_res_water.obj", waterTraMat, water);
+  Mesh *waterMesh = new Mesh("meshes/water.obj", waterTraMat, water);
   applyPerlinNoiseToMesh(waterMesh, 0.7f, 0.5f);
 
   objects.push_back(waterMesh);
