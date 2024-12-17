@@ -1174,6 +1174,57 @@ glm::vec3 toneMapping(glm::vec3 intensity) {
   return intensity;
 }
 
+// Anti-aliasing function that jitters the screen-space coordinates by a random
+// unifrom value
+// If we put samples_per_pixel = 1, we get the same result as the main function
+// with just slighlty jittered screen-space coordinates but no anti-aliasing
+// samples_per_pixel should be a perfect square (4, 9, 16, 25, ...)
+glm::vec3 trace_ray_anti_aliasing(int i, int j, int samples_per_pixel, float X,
+                                  float Y, float S) {
+  // First we define the color as black, we will add to this later
+  glm::vec3 color(0.0f);
+
+  // Gird size for the subpixel grid
+  // it is sqrt as we want to have a grid of grid_size x grid_size
+  int grid_size = sqrt(samples_per_pixel);
+  // Subpixel size for jittering
+  // We do the inverse here as we want to divide the pixel into subpixel_size
+  // and multiplying by subpixel_size is faster than diving by grid_size each
+  // iteration
+  float subpixel_size = 1.0f / grid_size;
+
+  // We iterate over the pixel grid
+  for (int x = 0; x < grid_size; ++x) {
+    for (int y = 0; y < grid_size; ++y) {
+      // Generate a random jitter within the subpixel
+      // drand48() generates a random number between 0 and 1 from a uniform
+      // distribution
+      float jitter_x = (x + drand48()) * subpixel_size;
+      float jitter_y = (y + drand48()) * subpixel_size;
+
+      // Compute screen-space coordinates with jittering
+      // Like we did in the main without anti-aliasing
+      float dx = X + (i + jitter_x) * S;
+      float dy = Y - (j + jitter_y) * S;
+      float dz = 1.0f;
+
+      // We now create a new jittered ray, origin is the same as the original
+      // ray (camera at 0.0, 0.0, 0.0)
+      glm::vec3 origin(0, 0, 0);
+      // We create the direction and normalize it
+      glm::vec3 direction = glm::normalize(glm::vec3(dx, dy, dz));
+
+      // Trace the jittered ray
+      Ray jittered_ray(origin, direction);
+      // Add the color to the final color
+      color += trace_ray(jittered_ray);
+    }
+  }
+
+  // Average the color over all samples
+  return color / float(samples_per_pixel);
+}
+
 int main(int argc, const char *argv[]) {
   int width = 2048;   // width of the image
   int height = 1536;  // height of the image
@@ -1209,10 +1260,17 @@ int main(int argc, const char *argv[]) {
       glm::vec3 direction(dx, dy, dz);
       direction = glm::normalize(direction);
 
-      Ray ray(origin, direction);  // ray traversal
-      image.setPixel(i, j,
-                     glm::clamp(toneMapping(trace_ray(ray)), glm::vec3(0.0),
-                                glm::vec3(1.0)));
+      // OLD RAY TRAVERSAL NO ANTI-ALIASING
+      // Ray ray(origin, direction);  // ray traversal
+      // image.setPixel(i, j,
+      //                glm::clamp(toneMapping(trace_ray(ray)), glm::vec3(0.0),
+      //                           glm::vec3(1.0)));
+
+      // We now use the anti-aliasing function
+      image.setPixel(
+          i, j,
+          glm::clamp(toneMapping(trace_ray_anti_aliasing(i, j, 4, X, Y, S)),
+                     glm::vec3(0.0), glm::vec3(1.0)));
 
       // TODO: Remove when testing performance
       // Print the progress of the rendering
