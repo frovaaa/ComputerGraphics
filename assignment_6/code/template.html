@@ -24,6 +24,8 @@
     
                 void main(){
                     // First we map the world coordinates to [0, 1] uv range
+                    // As originally the coordinates of the a_position are in [-0.5, 0.5] range
+                    // We just need to shift them by 0.5 to get the [0, 1] range
                     v_uvCoord = a_position.xz + 0.5;
 
                     // The height of the terrain is stored in the red channel of the texture
@@ -317,8 +319,8 @@
 			let terrainProjectionMatrixLocation = gl.getUniformLocation(terrainShaderProgram, "projectionMatrix");
 			let terrainHeightScaleLocation = gl.getUniformLocation(terrainShaderProgram, "heightScale");
 
-
-			// Model matrix for the terrain
+            
+            // Model matrix for the terrain
 			mat4.fromTranslation(modelMatrix, vec3.fromValues(0.0, 0.0, 0.0));
 			mat4.scale(modelMatrix, modelMatrix, vec3.fromValues(20.0, 15.0, 20.0));
 
