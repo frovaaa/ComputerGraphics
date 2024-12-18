@@ -60,19 +60,39 @@
                 uniform sampler2D waterTexture;
 
                 void main(){
+                    // First we get the color from the textures based on the uv coordinates
+                    vec4 waterColor = texture(waterTexture, v_uvCoord);
+                    vec4 sandColor = texture(sandTexture, v_uvCoord);
+                    vec4 grassColor = texture(grassTexture, v_uvCoord);
+                    vec4 graniteColor = texture(graniteTexture, v_uvCoord);
+                    vec4 snowColor = texture(snowTexture, v_uvCoord);
+
+
                     // We use the height to determine the texture
                     vec4 color;
-                    if(v_height < 0.07){
-                        color = texture(waterTexture, v_uvCoord);
-                    }else if(v_height < 0.10){
-                        color = texture(sandTexture, v_uvCoord);
-                    }else if(v_height < 0.15){
-                        color = texture(grassTexture, v_uvCoord);
-                    }else if(v_height < 0.25){
-                        color = texture(graniteTexture, v_uvCoord);
-                    }else{
-                        color = texture(snowTexture, v_uvCoord);
+
+                    // smoothstep gives us a smooth transition between the textures
+                    // by returning an interpolation between 0 and 1 based on the height
+                    // we found the method mix() that does the interpolation for us
+                    // of the two given colors
+                    // It takes value x, value y and value a
+                    // value a is the weight used to interpolate between x and y
+                    if (v_height < 0.07) {
+                        color = waterColor;
+                    } else if (v_height < 0.10) {
+                        float t = smoothstep(0.07, 0.10, v_height);
+                        color = mix(waterColor, sandColor, t);
+                    } else if (v_height < 0.15) {
+                        float t = smoothstep(0.10, 0.15, v_height);
+                        color = mix(sandColor, grassColor, t);
+                    } else if (v_height < 0.25) {
+                        float t = smoothstep(0.15, 0.25, v_height);
+                        color = mix(grassColor, graniteColor, t);
+                    } else {
+                        float t = smoothstep(0.25, 0.30, v_height);
+                        color = mix(graniteColor, snowColor, t);
                     }
+
                     out_color = color;
                 }`;
 
