@@ -5,3 +5,4 @@ CMakeLists.txt
 cmake-build-debug
 .vscode
 .clang-format
+assignment_6/code/texture_processing/.venv/
