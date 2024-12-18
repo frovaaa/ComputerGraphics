@@ -322,7 +322,7 @@
 
 			//drawing the sphere
 			gl.bindVertexArray(sphere_vao);
-			mat4.fromTranslation(modelMatrix, vec3.fromValues(0.0, 0.0, 0.0));
+			mat4.fromTranslation(modelMatrix, vec3.fromValues(0.0, 5.0, 0.0));
 			gl.uniformMatrix4fv(modelMatrixLocation, false, modelMatrix);
 			gl.drawArrays(gl.TRIANGLES, 0, sphere_vertices.length / 3);
 
