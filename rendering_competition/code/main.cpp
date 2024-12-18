@@ -705,10 +705,18 @@ class Light {
  public:
   glm::vec3 position;  ///< Position of the light source
   glm::vec3 color;     ///< Color/intentisty of the light source
+  // Size of the area light source (if it is an area light,
+  // represented as a unit cube * area_size with center 0,0,0 (cube coords))
+  // it is a volume light source (we could use the random_in_unit_disk to
+  // represent a disk if we wanted to)
+  float area_size;
   Light(glm::vec3 position) : position(position) { color = glm::vec3(1.0); }
 
   Light(glm::vec3 position, glm::vec3 color)
       : position(position), color(color) {}
+
+  Light(glm::vec3 position, glm::vec3 color, float area_size)
+      : position(position), color(color), area_size(area_size) {}
 };
 
 vector<Light *> lights;  ///< A list of lights in the scene
@@ -885,46 +893,89 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
 
   // Iterate over all light sources
   for (int i = 0; i < lights.size(); ++i) {
-    // light direction
-    glm::vec3 light_direction = glm::normalize(lights[i]->position - point);
+    // Number of shadow samples for soft shadows
+    int shadow_samples = 64;
+    // Initial visibility for soft shadows
+    float visibility = 0.0f;
 
-    // Assignment 4: Check if intersects to create shades
-    Ray ray_shade(point + (light_direction * 0.001f), light_direction);
+    // Soft shadows: sample points on the light source area
+    float half_area_size = lights[i]->area_size / 2.0f;
+    for (int s = 0; s < shadow_samples; ++s) {
+      // Sample a point on the light's area (unit cube)
+      // drand48() - 0.5f generates a random number between -0.5 and 0.5, then
+      // scaled by the half_area_size to fit cube dimensions
+      float rand_x =
+          lights[i]->position.x + (drand48() - 0.5f) * 2.0f * half_area_size;
+      float rand_y =
+          lights[i]->position.y + (drand48() - 0.5f) * 2.0f * half_area_size;
+      float rand_z =
+          lights[i]->position.z + (drand48() - 0.5f) * 2.0f * half_area_size;
 
-    // If there is any object between the intersection point and the light, we
-    // do not contribute the color
-    if (intersects_any_object(ray_shade, lights[i]->position)) {
-      continue;
+      // Light sample coordinates
+      glm::vec3 light_sample(rand_x, rand_y, rand_z);
+      // light direction
+      glm::vec3 light_direction = glm::normalize(light_sample - point);
+
+      // Cast a shadow ray toward the sampled light point
+      Ray shadow_ray(point + (light_direction * 0.001f), light_direction);
+
+      // Check if the shadow ray intersects any object (occlusion)
+      if (!intersects_any_object(shadow_ray, light_sample)) {
+        // If the shadow ray does not intersect any object, add light
+        // contribution
+        visibility += 1.0f;
+      }
     }
 
-    // Angle between the normal and the light direction
-    // No need to check negative as we clamp the value
-    float phi = glm::clamp(glm::dot(normal, light_direction), 0.0f, 1.0f);
-    glm::vec3 reflected_direction = ((2.0f * normal) * phi) - light_direction;
+    // Now we average the visibility
+    visibility /= shadow_samples;
 
-    float RdotV =
-        glm::clamp(glm::dot(reflected_direction, view_direction), 0.0f, 1.0f);
+    // Compute light contribution only if visibility is > 0
 
-    // Diffuse
-    glm::vec3 diffuse_color = material.diffuse;
-    glm::vec3 diffuse = diffuse_color * glm::vec3(phi);
+    if (visibility > 0.0f) {
+      // light direction
+      glm::vec3 light_direction = glm::normalize(lights[i]->position - point);
 
-    // Specular illumination
-    glm::vec3 specular =
-        material.specular * glm::vec3(pow(RdotV, material.shininess));
+      // Assignment 4: Check if intersects to create shades
+      Ray ray_shade(point + (light_direction * 0.001f), light_direction);
 
-    /* Assignment 2: Distance attenuation*/
-    float att_d = 1;
+      // Commented when implementing soft shadows
+      // // If there is any object between the intersection point and the light,
+      // we
+      // // do not contribute the color
+      // if (intersects_any_object(ray_shade, lights[i]->position)) {
+      //   continue;
+      // }
 
-    float r = glm::distance(point, lights[i]->position);
-    if (r > 0) {
-      float alpha1 = 0.01;
-      float alpha2 = 0.01;
-      float alpha3 = 0.01;
-      att_d = 1 / (alpha1 + alpha2 * r + alpha3 * r * r);
+      // Angle between the normal and the light direction
+      // No need to check negative as we clamp the value
+      float phi = glm::clamp(glm::dot(normal, light_direction), 0.0f, 1.0f);
+      glm::vec3 reflected_direction = ((2.0f * normal) * phi) - light_direction;
+
+      float RdotV =
+          glm::clamp(glm::dot(reflected_direction, view_direction), 0.0f, 1.0f);
+
+      // Diffuse
+      glm::vec3 diffuse_color = material.diffuse;
+      glm::vec3 diffuse = diffuse_color * glm::vec3(phi);
+
+      // Specular illumination
+      glm::vec3 specular =
+          material.specular * glm::vec3(pow(RdotV, material.shininess));
+
+      /* Assignment 2: Distance attenuation*/
+      float att_d = 1;
+
+      float r = glm::distance(point, lights[i]->position);
+      if (r > 0) {
+        float alpha1 = 0.01;
+        float alpha2 = 0.01;
+        float alpha3 = 0.01;
+        att_d = 1 / (alpha1 + alpha2 * r + alpha3 * r * r);
+      }
+      // Add the contribution of the light source to the final color
+      color += lights[i]->color * (diffuse + specular) * att_d;
     }
-    // Add the contribution of the light source to the final color
-    color += lights[i]->color * (diffuse + specular) * att_d;
   }
 
   // Add ambient illumination
@@ -1005,9 +1056,9 @@ glm::vec3 trace_ray(Ray ray) {
  */
 void sceneDefinition() {
   /* Define lights */
-  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(0.0f)));
-  lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(0.1f)));
-  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.2f)));
+  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(1.0f), 2.0f));
+  lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(0.1f), 2.0f));
+  lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.2f), 2.0f));
 
   /* Assignment 2: Planes */
   // Points at extremities of the box (top right and back left)
@@ -1133,7 +1184,7 @@ void sceneDefinition() {
   water.ambient = glm::vec3(0.01f, 0.01f, 0.9f);
   water.specular = glm::vec3(0.6f);
   water.shininess = 100.0f;
-  water.apply_perlin_noise = true;
+  water.apply_perlin_noise = false;
   water.perlin_noise_type = 2;
   water.perlin_noise_intensity = 0.7f;
   water.perlin_noise_scale = 0.5f;
@@ -1141,7 +1192,7 @@ void sceneDefinition() {
   water.perlin_noise_normal_scale = 0.5f;
 
   Mesh *waterMesh = new Mesh("meshes/low_res_water.obj", waterTraMat, water);
-  applyPerlinNoiseToMesh(waterMesh, 0.7f, 0.5f);
+  // applyPerlinNoiseToMesh(waterMesh, 0.7f, 0.5f);
 
   objects.push_back(waterMesh);
 
@@ -1302,17 +1353,19 @@ int main(int argc, const char *argv[]) {
       //                           glm::vec3(1.0)));
 
       // New ray traversal with anti-aliasing and depth of field
+      // Put 1 as samples_per_pixel to have the same result as the main
+      // Put 0.0f as aperture to "disable" depth of field (usual value 0.1f)
       image.setPixel(i, j,
                      glm::clamp(toneMapping(trace_ray_stochastic(
-                                    i, j, 4, X, Y, S, 0.1f, 5.0f)),
+                                    i, j, 1, X, Y, S, 0.0f, 5.0f)),
                                 glm::vec3(0.0), glm::vec3(1.0)));
 
       // TODO: Remove when testing performance
       // Print the progress of the rendering
-      // if (j % 10000 == 0) {
-      //   float percentage = (float)(i * height + j) / (width * height) * 100;
-      //   cout << "Progress: " << percentage << "%" << endl;
-      // }
+      if (j % 10000 == 0) {
+        float percentage = (float)(i * height + j) / (width * height) * 100;
+        cout << "Progress: " << percentage << "%" << endl;
+      }
     }
 
   t = clock() - t;
