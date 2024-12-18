@@ -179,6 +179,8 @@ create_sphere();
 // definition of the terrain
 //---------------------------
 var terrain_vertices = [];
+var terrain_normals = [];
+var terrain_texCoords = [];
 
 // The function for creating a subdivided quad for terrain rendering.
 // It creates vertices for a quad [-0.5..0.5]^2 in the XZ plane.
@@ -205,3 +207,4 @@ function create_terrain(){
 }
 
 create_terrain();
+compute_normals(terrain_vertices,terrain_normals);
