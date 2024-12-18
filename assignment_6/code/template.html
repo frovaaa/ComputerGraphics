@@ -20,7 +20,7 @@
                 uniform float heightScale;
 
                 out vec2 v_uvCoord;
-                out vec3 v_position;
+                out float v_height;
     
                 void main(){
                     // First we map the world coordinates to [0, 1] uv range
@@ -31,12 +31,12 @@
                     // The height of the terrain is stored in the red channel of the texture
                     float height = texture(luganoTexture, v_uvCoord).r;
 
+                    // We pass the height to the fragment shader
+                    v_height = height;
+
                     // Now we compute the position of the vertex with the displaced height
                     vec3 displacedPosition = a_position;
                     displacedPosition.y += (height * heightScale);
-
-                    // Now we can pass the displaced position to the fragment shader
-                    v_position = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
 
                     // Finally we compute the final position of the vertex
                     gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(displacedPosition, 1.0);
@@ -49,16 +49,31 @@
                 // Texture
                 uniform sampler2D luganoTexture;
                 in vec2 v_uvCoord;
+                in float v_height;
                 out vec4 out_color;
-                
-                in vec3 v_position;
+
+                // Materials/Textures
+                uniform sampler2D graniteTexture;
+                uniform sampler2D grassTexture;
+                uniform sampler2D sandTexture;
+                uniform sampler2D snowTexture;
+                uniform sampler2D waterTexture;
 
                 void main(){
-                    // out_color = texture(luganoTexture, v_uvCoord);
-
-
-                    // out_color is height
-                    out_color = vec4(v_position.y, v_position.y, v_position.y, 1.0);
+                    // We use the height to determine the texture
+                    vec4 color;
+                    if(v_height < 0.07){
+                        color = texture(waterTexture, v_uvCoord);
+                    }else if(v_height < 0.10){
+                        color = texture(sandTexture, v_uvCoord);
+                    }else if(v_height < 0.15){
+                        color = texture(grassTexture, v_uvCoord);
+                    }else if(v_height < 0.25){
+                        color = texture(graniteTexture, v_uvCoord);
+                    }else{
+                        color = texture(snowTexture, v_uvCoord);
+                    }
+                    out_color = color;
                 }`;
 
 		var vertexShaderCode =
@@ -319,8 +334,8 @@
 			let terrainProjectionMatrixLocation = gl.getUniformLocation(terrainShaderProgram, "projectionMatrix");
 			let terrainHeightScaleLocation = gl.getUniformLocation(terrainShaderProgram, "heightScale");
 
-            
-            // Model matrix for the terrain
+
+			// Model matrix for the terrain
 			mat4.fromTranslation(modelMatrix, vec3.fromValues(0.0, 0.0, 0.0));
 			mat4.scale(modelMatrix, modelMatrix, vec3.fromValues(20.0, 15.0, 20.0));
 
@@ -374,12 +389,12 @@
 
 		// a list of the paths to the files with textures
 		// add here the paths to the files from which the textures should be read
-		var textureFiles = ['./terrain/lugano.png'];
+		var textureFiles = ['./terrain/lugano.png', './textures/granite_color.jpg', './textures/grass_color.jpg', './textures/sand_color.jpg', './textures/snow_color.jpg', './textures/water_color.jpg'];
 
 		// textureVariables should contain the names of uniforms in the shader program
 		// IMPORTAN: if you are going to use the code we provide,
 		// make sure the names below are identical to the one you use in the shader program
-		var textureVariables = ['luganoTexture'];
+		var textureVariables = ['luganoTexture', 'graniteTexture', 'grassTexture', 'sandTexture', 'snowTexture', 'waterTexture'];
 
 		function count_down() {
 			leftToRead = leftToRead - 1;
