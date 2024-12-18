@@ -6,6 +6,7 @@
 
 */
 
+#include <atomic>
 #include <cmath>
 #include <ctime>
 #include <fstream>
@@ -18,6 +19,7 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/noise.hpp"
 #include "glm/gtx/transform.hpp"
+#include "omp.h"
 
 using namespace std;
 
@@ -894,36 +896,42 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
   // Iterate over all light sources
   for (int i = 0; i < lights.size(); ++i) {
     // Number of shadow samples for soft shadows
-    int shadow_samples = 64;
+    int shadow_samples = 16;
+    int grid_size = sqrt(shadow_samples);
     // Initial visibility for soft shadows
     float visibility = 0.0f;
 
-    // Soft shadows: sample points on the light source area
+    // Soft shadows: sample points on the light source area using stratified
+    // sampling
     float half_area_size = lights[i]->area_size / 2.0f;
-    for (int s = 0; s < shadow_samples; ++s) {
-      // Sample a point on the light's area (unit cube)
-      // drand48() - 0.5f generates a random number between -0.5 and 0.5, then
-      // scaled by the half_area_size to fit cube dimensions
-      float rand_x =
-          lights[i]->position.x + (drand48() - 0.5f) * 2.0f * half_area_size;
-      float rand_y =
-          lights[i]->position.y + (drand48() - 0.5f) * 2.0f * half_area_size;
-      float rand_z =
-          lights[i]->position.z + (drand48() - 0.5f) * 2.0f * half_area_size;
+    for (int x = 0; x < grid_size; ++x) {
+      for (int y = 0; y < grid_size; ++y) {
+        // Stratified sampling within each grid cell
+        float rand_x = (x + drand48()) / grid_size;
+        float rand_y = (y + drand48()) / grid_size;
 
-      // Light sample coordinates
-      glm::vec3 light_sample(rand_x, rand_y, rand_z);
-      // light direction
-      glm::vec3 light_direction = glm::normalize(light_sample - point);
+        // Scale to light's area
+        float sample_x =
+            lights[i]->position.x + (rand_x - 0.5f) * 2.0f * half_area_size;
+        float sample_y =
+            lights[i]->position.y + (rand_y - 0.5f) * 2.0f * half_area_size;
+        float sample_z =
+            lights[i]->position.z + (drand48() - 0.5f) * 2.0f * half_area_size;
 
-      // Cast a shadow ray toward the sampled light point
-      Ray shadow_ray(point + (light_direction * 0.001f), light_direction);
+        // Light sample coordinates
+        glm::vec3 light_sample(sample_x, sample_y, sample_z);
+        // light direction
+        glm::vec3 light_direction = glm::normalize(light_sample - point);
 
-      // Check if the shadow ray intersects any object (occlusion)
-      if (!intersects_any_object(shadow_ray, light_sample)) {
-        // If the shadow ray does not intersect any object, add light
-        // contribution
-        visibility += 1.0f;
+        // Cast a shadow ray toward the sampled light point
+        Ray shadow_ray(point + (light_direction * 1e-4f), light_direction);
+
+        // Check if the shadow ray intersects any object (occlusion)
+        if (!intersects_any_object(shadow_ray, light_sample)) {
+          // If the shadow ray does not intersect any object, add light
+          // contribution
+          visibility += 1.0f;
+        }
       }
     }
 
@@ -1334,8 +1342,12 @@ int main(int argc, const char *argv[]) {
   float X = -S * width / 2;
   float Y = S * height / 2;
 
+  std::atomic<int> progress(0);
+  int total_rows = width;
+
   clock_t t = clock();  // variable for keeping the time of the rendering
-  for (int i = 0; i < width; i++)
+#pragma omp parallel for schedule(dynamic)
+  for (int i = 0; i < width; i++) {
     for (int j = 0; j < height; j++) {
       float dx = X + i * S + S / 2;
       float dy = Y - j * S - S / 2;
@@ -1362,11 +1374,28 @@ int main(int argc, const char *argv[]) {
 
       // TODO: Remove when testing performance
       // Print the progress of the rendering
-      if (j % 10000 == 0) {
-        float percentage = (float)(i * height + j) / (width * height) * 100;
-        cout << "Progress: " << percentage << "%" << endl;
-      }
+      // if (j % 10000 == 0) {
+      //   float percentage = (float)(i * height + j) / (width * height) * 100;
+      //   cout << "Progress: " << percentage << "%" << endl;
+      // }
+
+      // Optional: Show progress in a parallel-safe way
+      // if (omp_get_thread_num() == 0 && i % 10 == 0) {
+      //   std::cout << "Row " << i << " completed by thread "
+      //             << omp_get_thread_num() << std::endl;
+      // }
     }
+
+    // Optional: Show progress in a parallel-safe way
+    progress++;
+
+    // Print the progress of the rendering
+    if (progress % 10 == 0) {
+      float percentage = (float)progress / total_rows * 100;
+      cout << "Progress: " << percentage << "% ( " << progress << " / "
+           << total_rows << " rows)" << endl;
+    }
+  }
 
   t = clock() - t;
   cout << "It took " << ((float)t) / CLOCKS_PER_SEC
