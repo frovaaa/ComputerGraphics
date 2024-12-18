@@ -101,10 +101,10 @@
                     // of the two given colors
                     // It takes value x, value y and value a
                     // value a is the weight used to interpolate between x and y
-                    if (v_height < 0.07) {
+                    if (v_height < 0.01) {
                         color = waterColor;
                     } else if (v_height < 0.10) {
-                        float t = smoothstep(0.07, 0.10, v_height);
+                        float t = smoothstep(0.01, 0.10, v_height);
                         color = mix(waterColor, sandColor, t);
                     } else if (v_height < 0.15) {
                         float t = smoothstep(0.10, 0.15, v_height);
