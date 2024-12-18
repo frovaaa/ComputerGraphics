@@ -1096,7 +1096,7 @@ void sceneDefinition() {
   // armadillo->addMeshToScene();
   objects.push_back(armadillo);
 
-  glm::mat4 bunnyTrans = glm::translate(glm::vec3(0.0f, -3.0f, 8.0f));
+  glm::mat4 bunnyTrans = glm::translate(glm::vec3(0.0f, -3.0f, 5.0f));
   glm::mat4 bunnyRot = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f),
                                    glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 bunnyScale = glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
@@ -1140,7 +1140,7 @@ void sceneDefinition() {
   water.perlin_noise_normal_intensity = 0.5f;
   water.perlin_noise_normal_scale = 0.5f;
 
-  Mesh *waterMesh = new Mesh("meshes/water.obj", waterTraMat, water);
+  Mesh *waterMesh = new Mesh("meshes/low_res_water.obj", waterTraMat, water);
   applyPerlinNoiseToMesh(waterMesh, 0.7f, 0.5f);
 
   objects.push_back(waterMesh);
@@ -1174,13 +1174,37 @@ glm::vec3 toneMapping(glm::vec3 intensity) {
   return intensity;
 }
 
-// Anti-aliasing function that jitters the screen-space coordinates by a random
+// Function to generate a random point on the unit disk
+// it is a disk as we simulate the round camera lens
+glm::vec2 random_in_unit_disk() {
+  // First we generate a random angle theta between 0 and 2pi
+  float theta = 2.0f * M_PI * drand48();
+  // We generate a random radius between 0 and 1 with a square root to have a
+  // uniform distribution
+  // As if we took only r, points would cluster toward the center as the area of
+  // a circle increases grows quadratically with the radius (A = pi * r^2)
+  float r = sqrt(drand48());
+  // Finally we convert from polar to cartesian coordinates as we need a 2D
+  // coordinate
+  return glm::vec2(r * cos(theta), r * sin(theta));
+}
+
+// ANTI-ALIASING function that jitters the screen-space coordinates by a random
 // unifrom value
+// Here we jitter the screen-space coordinates (basically moving the direction)
 // If we put samples_per_pixel = 1, we get the same result as the main function
 // with just slighlty jittered screen-space coordinates but no anti-aliasing
 // samples_per_pixel should be a perfect square (4, 9, 16, 25, ...)
-glm::vec3 trace_ray_anti_aliasing(int i, int j, int samples_per_pixel, float X,
-                                  float Y, float S) {
+
+// DEPTH_OF_FIELD
+// Here we jitter the origin of the ray on the lens and compute the focal point
+// We add the depth of field effect by simulating a lens with a certain aperture
+// and focal distance. We randomly move the origin of the ray on the lens and
+// compute the focal point on the focal plane. We then create a new ray from the
+// lens origin to the focal point and trace it.
+glm::vec3 trace_ray_stochastic(int i, int j, int samples_per_pixel, float X,
+                               float Y, float S, float aperture,
+                               float focal_distance) {
   // First we define the color as black, we will add to this later
   glm::vec3 color(0.0f);
 
@@ -1214,14 +1238,25 @@ glm::vec3 trace_ray_anti_aliasing(int i, int j, int samples_per_pixel, float X,
       // We create the direction and normalize it
       glm::vec3 direction = glm::normalize(glm::vec3(dx, dy, dz));
 
-      // Trace the jittered ray
-      Ray jittered_ray(origin, direction);
-      // Add the color to the final color
-      color += trace_ray(jittered_ray);
+      // **Lens Simulation**: Randomly sample a point on the aperture (lens)
+      glm::vec2 lens_offset = aperture * random_in_unit_disk();
+      glm::vec3 lens_origin = origin + glm::vec3(lens_offset, 0.0f);
+
+      // Compute the focal point (intersection on the focal plane)
+      float t_focus = focal_distance / direction.z;
+      // Scale based on Z to get the focal point
+      glm::vec3 focal_point = origin + t_focus * direction;
+
+      // New direction from the jittered lens origin to the focal point
+      glm::vec3 dof_direction = glm::normalize(focal_point - lens_origin);
+
+      // Trace the depth-of-field ray
+      Ray dof_ray(lens_origin, dof_direction);
+      color += trace_ray(dof_ray);
     }
   }
 
-  // Average the color over all samples
+  // Average the color contributions
   return color / float(samples_per_pixel);
 }
 
@@ -1266,11 +1301,11 @@ int main(int argc, const char *argv[]) {
       //                glm::clamp(toneMapping(trace_ray(ray)), glm::vec3(0.0),
       //                           glm::vec3(1.0)));
 
-      // We now use the anti-aliasing function
-      image.setPixel(
-          i, j,
-          glm::clamp(toneMapping(trace_ray_anti_aliasing(i, j, 4, X, Y, S)),
-                     glm::vec3(0.0), glm::vec3(1.0)));
+      // New ray traversal with anti-aliasing and depth of field
+      image.setPixel(i, j,
+                     glm::clamp(toneMapping(trace_ray_stochastic(
+                                    i, j, 4, X, Y, S, 0.1f, 5.0f)),
+                                glm::vec3(0.0), glm::vec3(1.0)));
 
       // TODO: Remove when testing performance
       // Print the progress of the rendering
