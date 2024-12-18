@@ -896,7 +896,7 @@ glm::vec3 PhongModel(glm::vec3 point, glm::vec3 normal,
   // Iterate over all light sources
   for (int i = 0; i < lights.size(); ++i) {
     // Number of shadow samples for soft shadows
-    int shadow_samples = 16;
+    int shadow_samples = 1;
     int grid_size = sqrt(shadow_samples);
     // Initial visibility for soft shadows
     float visibility = 0.0f;
@@ -1064,7 +1064,7 @@ glm::vec3 trace_ray(Ray ray) {
  */
 void sceneDefinition() {
   /* Define lights */
-  lights.push_back(new Light(glm::vec3(0, 26, 5), glm::vec3(1.0f), 2.0f));
+  lights.push_back(new Light(glm::vec3(0, 20, 5), glm::vec3(0.8f), 5.0f));
   lights.push_back(new Light(glm::vec3(0, 1, 12), glm::vec3(0.1f), 2.0f));
   lights.push_back(new Light(glm::vec3(0, 5, 1), glm::vec3(0.2f), 2.0f));
 
@@ -1192,15 +1192,15 @@ void sceneDefinition() {
   water.ambient = glm::vec3(0.01f, 0.01f, 0.9f);
   water.specular = glm::vec3(0.6f);
   water.shininess = 100.0f;
-  water.apply_perlin_noise = false;
+  water.apply_perlin_noise = true;
   water.perlin_noise_type = 2;
   water.perlin_noise_intensity = 0.7f;
   water.perlin_noise_scale = 0.5f;
   water.perlin_noise_normal_intensity = 0.5f;
   water.perlin_noise_normal_scale = 0.5f;
 
-  Mesh *waterMesh = new Mesh("meshes/low_res_water.obj", waterTraMat, water);
-  // applyPerlinNoiseToMesh(waterMesh, 0.7f, 0.5f);
+  Mesh *waterMesh = new Mesh("meshes/water.obj", waterTraMat, water);
+  applyPerlinNoiseToMesh(waterMesh, 0.7f, 0.5f);
 
   objects.push_back(waterMesh);
 
@@ -1369,7 +1369,7 @@ int main(int argc, const char *argv[]) {
       // Put 0.0f as aperture to "disable" depth of field (usual value 0.1f)
       image.setPixel(i, j,
                      glm::clamp(toneMapping(trace_ray_stochastic(
-                                    i, j, 1, X, Y, S, 0.0f, 5.0f)),
+                                    i, j, 4, X, Y, S, 0.1f, 5.0f)),
                                 glm::vec3(0.0), glm::vec3(1.0)));
 
       // TODO: Remove when testing performance
