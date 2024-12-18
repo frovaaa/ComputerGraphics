@@ -1,0 +1,61 @@
+\documentclass[unicode,11pt,a4paper,oneside,numbers=endperiod,openany]{scrartcl}
+
+% Required packages
+\usepackage{amssymb} % for extended mathematical symbols
+\usepackage{graphicx} % for including images
+\usepackage{amsmath} % for mathematical equations
+\usepackage{matlab-prettifier} % for MATLAB code snippets
+\usepackage{float} % for enforcing element placement
+\usepackage[export]{adjustbox} % for adjusting image placement
+\usepackage{multirow} % for table cells spanning multiple rows
+\usepackage{booktabs} % for better table formatting
+\usepackage{algorithm} % for algorithm display
+\usepackage{algpseudocode} % for pseudocode
+\usepackage{physics} % for math symbols like norm, abs
+
+\renewcommand{\thesubsection}{\arabic{subsection}}
+
+% Macros for convenience
+\newcommand{\myvec}[1]{\begin{bmatrix} #1 \end{bmatrix}}
+\newcommand{\myFigure}[4]{
+    \begin{figure}[htbp]
+    \centering
+    \caption{#1}
+    \label{#2}
+    \includegraphics[width=\textwidth, trim=#3]{./figures/#4}
+    \end{figure}
+}
+
+\input{assignment.sty}
+
+\begin{document}
+
+\setassignment
+
+\serieheader
+{Computer Graphics}
+{2024}
+{\textbf{Students:} Davide Frova, Jamila Oubenali}
+{}
+{Assignment 6}{}
+
+\section{Exercises done}
+We have done all the exercises regarding the rasterization
+including the bonus exercise.
+
+\section{Issues encountered}
+No issues were encountered.
+
+\section{Resources used}
+% list of links that i used as textures
+All textures were taken from the website
+\url{https://3dtextures.me}.
+\begin{itemize}
+    \item \url{https://meocloud.pt/link/113cc307-ca30-4e3a-bd1c-b61e7e6e9b9f/Sand%20002/}
+    \item \url{https://meocloud.pt/link/f3a11a66-d8c4-4ecd-84c0-2b2b5f7d1e73/Granite_002_SD/}
+    \item \url{https://meocloud.pt/link/a2c7ce38-9548-4f18-aac8-d79bcdadd59b/Snow_001_SD/}
+    \item \url{https://meocloud.pt/link/8ce20b6d-a1c0-4337-b41a-dea4d89886c4/Water_001_SD/}
+\end{itemize}
+We used the provided heightmap of Lugano.
+
+\end{document}
